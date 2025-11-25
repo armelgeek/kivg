@@ -119,15 +119,12 @@ class Kivg:
             pen_pos = SvgRenderer.get_current_pen_position(self.widget, self.path)
             if pen_pos:
                 self._pen_tracker.update_position(*pen_pos)
-                self._pen_tracker.clear_hand()
-                self._pen_tracker.draw_hand()
     
     def _on_draw_complete(self, *args) -> None:
         """Handle completion of draw animation."""
         # Stop and hide pen tracker
         if self._pen_tracker:
             self._pen_tracker.stop()
-            self._pen_tracker.clear_hand()
 
     def draw(self, svg_file: str, animate: bool = False, 
              anim_type: str = "seq", *args, **kwargs) -> None:

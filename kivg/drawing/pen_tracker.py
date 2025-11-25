@@ -3,7 +3,7 @@ PenTracker handles pen/stylus tracking with hand image during SVG path animation
 This creates a writing effect where a hand image follows the drawing path.
 """
 
-from kivy.graphics import Rectangle, Color
+from kivy.graphics import Rectangle, Color, InstructionGroup
 from kivy.core.image import Image as CoreImage
 from typing import Any, Optional, Tuple
 import os
@@ -39,7 +39,9 @@ class PenTracker:
         self.hand_size = hand_size
         self.pen_offset = pen_offset
         self._hand_texture = None
+        self._hand_group = None  # InstructionGroup to hold hand graphics
         self._hand_rect = None
+        self._hand_color = None
         self._is_active = False
         self._current_pos = (0, 0)
         
@@ -48,20 +50,33 @@ class PenTracker:
     
     def _load_hand_texture(self) -> None:
         """Load the hand image texture."""
-        if os.path.exists(self.hand_image_path):
-            try:
-                self._hand_texture = CoreImage(self.hand_image_path).texture
-            except Exception:
-                self._hand_texture = None
+        if not os.path.exists(self.hand_image_path):
+            return
+        try:
+            self._hand_texture = CoreImage(self.hand_image_path).texture
+        except (IOError, OSError) as e:
+            # Image file could not be loaded (corrupted, unsupported format, etc.)
+            self._hand_texture = None
     
     def start(self) -> None:
         """Start tracking - makes the hand visible."""
         self._is_active = True
+        # Create instruction group for hand graphics
+        self._hand_group = InstructionGroup()
+        self._hand_color = Color(1, 1, 1, 1)
+        self._hand_rect = Rectangle(
+            texture=self._hand_texture,
+            pos=self._current_pos,
+            size=self.hand_size
+        )
+        self._hand_group.add(self._hand_color)
+        self._hand_group.add(self._hand_rect)
+        self.widget.canvas.after.add(self._hand_group)
     
     def stop(self) -> None:
         """Stop tracking and hide the hand."""
         self._is_active = False
-        self._hand_rect = None
+        self.clear_hand()
     
     def update_position(self, x: float, y: float) -> None:
         """
@@ -80,23 +95,26 @@ class PenTracker:
         hand_y = y - self.pen_offset[1]
         
         self._current_pos = (hand_x, hand_y)
+        
+        # Update the rectangle position directly (more efficient than recreating)
+        if self._hand_rect:
+            self._hand_rect.pos = self._current_pos
     
     def draw_hand(self) -> None:
-        """Draw the hand image at the current position."""
-        if not self._is_active or self._hand_texture is None:
-            return
+        """Draw the hand image at the current position.
         
-        with self.widget.canvas.after:
-            Color(1, 1, 1, 1)
-            Rectangle(
-                texture=self._hand_texture,
-                pos=self._current_pos,
-                size=self.hand_size
-            )
+        Note: This is now a no-op since we update position directly.
+        Kept for backward compatibility.
+        """
+        pass
     
     def clear_hand(self) -> None:
         """Clear the hand from the canvas."""
-        self.widget.canvas.after.clear()
+        if self._hand_group:
+            self.widget.canvas.after.remove(self._hand_group)
+            self._hand_group = None
+            self._hand_rect = None
+            self._hand_color = None
     
     @property
     def is_active(self) -> bool:

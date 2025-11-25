@@ -66,23 +66,17 @@ class SvgRenderer:
         # Find the last active drawing position
         for element in path_elements:
             if isinstance(element, Line):
-                try:
-                    end_x = getattr(widget, f"line{line_count}_end_x", None)
-                    end_y = getattr(widget, f"line{line_count}_end_y", None)
-                    if end_x is not None and end_y is not None:
-                        last_pos = (end_x, end_y)
-                except AttributeError:
-                    pass
+                end_x = getattr(widget, f"line{line_count}_end_x", None)
+                end_y = getattr(widget, f"line{line_count}_end_y", None)
+                if end_x is not None and end_y is not None:
+                    last_pos = (end_x, end_y)
                 line_count += 1
                     
             elif isinstance(element, CubicBezier):
-                try:
-                    end_x = getattr(widget, f"bezier{bezier_count}_end_x", None)
-                    end_y = getattr(widget, f"bezier{bezier_count}_end_y", None)
-                    if end_x is not None and end_y is not None:
-                        last_pos = (end_x, end_y)
-                except AttributeError:
-                    pass
+                end_x = getattr(widget, f"bezier{bezier_count}_end_x", None)
+                end_y = getattr(widget, f"bezier{bezier_count}_end_y", None)
+                if end_x is not None and end_y is not None:
+                    last_pos = (end_x, end_y)
                 bezier_count += 1
         
         return last_pos
