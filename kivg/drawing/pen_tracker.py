@@ -51,15 +51,22 @@ class PenTracker:
     def _load_hand_texture(self) -> None:
         """Load the hand image texture."""
         if not os.path.exists(self.hand_image_path):
+            self._hand_texture = None
             return
         try:
             self._hand_texture = CoreImage(self.hand_image_path).texture
-        except (IOError, OSError) as e:
+        except (IOError, OSError):
             # Image file could not be loaded (corrupted, unsupported format, etc.)
             self._hand_texture = None
     
     def start(self) -> None:
-        """Start tracking - makes the hand visible."""
+        """Start tracking - makes the hand visible.
+        
+        Does nothing if hand texture could not be loaded.
+        """
+        if self._hand_texture is None:
+            return
+        
         self._is_active = True
         # Create instruction group for hand graphics
         self._hand_group = InstructionGroup()

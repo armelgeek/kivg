@@ -181,7 +181,6 @@ class Kivg:
         else:
             if self._pen_tracker:
                 self._pen_tracker.stop()
-                self._pen_tracker.clear_hand()
             self._pen_tracker = None
         
         # Only process SVG if it's different from the previous one
