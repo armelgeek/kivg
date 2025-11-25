@@ -4,13 +4,14 @@ Core class and main API
 """
 
 from collections import OrderedDict
-from typing import List, Tuple, Dict, Any, Callable
+from typing import List, Tuple, Dict, Any, Callable, Optional
 
 from kivg.animation.kivy_animation import Animation
 from kivg.drawing.manager import DrawingManager
 from kivg.animation.handler import AnimationHandler
 from kivg.mesh_handler import MeshHandler
 from kivg.svg_renderer import SvgRenderer
+from kivg.drawing.pen_tracker import PenTracker
 
 
 class Kivg:
@@ -47,6 +48,10 @@ class Kivg:
         self.curr_count = 0
         self.prev_shapes = []
         self.curr_shape = []
+        
+        # Pen tracking state
+        self._pen_tracker: Optional[PenTracker] = None
+        self._show_hand = False
 
     def fill_up(self, shapes: List[List[float]], color: List[float]) -> None:
         """
@@ -108,6 +113,21 @@ class Kivg:
     def update_canvas(self, *args, **kwargs) -> None:
         """Update the canvas with the current drawing state."""
         SvgRenderer.update_canvas(self.widget, self.path, self._line_color)
+        
+        # Update pen tracker position if active
+        if self._pen_tracker and self._pen_tracker.is_active:
+            pen_pos = SvgRenderer.get_current_pen_position(self.widget, self.path)
+            if pen_pos:
+                self._pen_tracker.update_position(*pen_pos)
+                self._pen_tracker.clear_hand()
+                self._pen_tracker.draw_hand()
+    
+    def _on_draw_complete(self, *args) -> None:
+        """Handle completion of draw animation."""
+        # Stop and hide pen tracker
+        if self._pen_tracker:
+            self._pen_tracker.stop()
+            self._pen_tracker.clear_hand()
 
     def draw(self, svg_file: str, animate: bool = False, 
              anim_type: str = "seq", *args, **kwargs) -> None:
@@ -125,6 +145,10 @@ class Kivg:
             line_color: Color of lines (list)
             dur: Duration of each animation step (float)
             from_shape_anim: Whether called from shape_animate (bool)
+            show_hand: Whether to show a hand image following the pen (bool)
+            hand_image: Path to custom hand image file (str)
+            hand_size: Size of hand image as (width, height) tuple
+            pen_offset: Offset of pen tip in hand image as (x, y) tuple
         """
         # Process arguments
         fill = kwargs.get("fill", self._fill)
@@ -134,12 +158,34 @@ class Kivg:
         from_shape_anim = kwargs.get("from_shape_anim", False)
         anim_type = anim_type if anim_type in ("seq", "par") else "seq"
         
+        # Pen tracking options
+        show_hand = kwargs.get("show_hand", False)
+        hand_image = kwargs.get("hand_image", None)
+        hand_size = kwargs.get("hand_size", (100, 100))
+        pen_offset = kwargs.get("pen_offset", (10, 85))
+        
         # Set current values as instance attributes for other methods to access
         self._fill = fill
         self._line_width = line_width
         self._line_color = line_color
         self._animation_duration = duration
         self.current_svg_file = svg_file
+        self._show_hand = show_hand and animate  # Only show hand when animating
+        
+        # Initialize pen tracker if needed
+        if self._show_hand:
+            self._pen_tracker = PenTracker(
+                self.widget, 
+                hand_image=hand_image,
+                hand_size=hand_size,
+                pen_offset=pen_offset
+            )
+            self._pen_tracker.start()
+        else:
+            if self._pen_tracker:
+                self._pen_tracker.stop()
+                self._pen_tracker.clear_hand()
+            self._pen_tracker = None
         
         # Only process SVG if it's different from the previous one
         if svg_file != self._previous_svg_file:
@@ -167,9 +213,10 @@ class Kivg:
                         anim, self.widget, self.fill_up_shapes
                     )
                 
-                # Start the animation
+                # Start the animation with completion callback for pen tracker
                 AnimationHandler.prepare_and_start_animation(
-                    anim, self.widget, self.update_canvas
+                    anim, self.widget, self.update_canvas, 
+                    on_complete_callback=self._on_draw_complete if self._show_hand else None
                 )
             else:
                 # Static rendering

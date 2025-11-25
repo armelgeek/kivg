@@ -45,6 +45,19 @@ s.draw("github.svg", fill=False, animate=True, anim_type="seq")
 - **line_width** : *Width of the path stroke*. Defaults to `2`
 - **line_color** : *Color of the path stroke in RGBA format*. Defaults to `[0, 0, 0, 1]`
 - **dur** : *Duration of each animation step in seconds*. Defaults to `0.02`
+- **show_hand** : *Whether to show a hand image following the pen during animation*. Defaults to `False`
+- **hand_image** : *Path to custom hand image file*. Defaults to built-in hand image
+- **hand_size** : *Size of hand image as (width, height) tuple*. Defaults to `(100, 100)`
+- **pen_offset** : *Offset of pen tip in hand image as (x, y) tuple*. Defaults to `(10, 85)`
+
+#### Hand/Pen Tracking Effect
+
+To create a realistic writing effect with a hand following the pen:
+
+```python
+s.draw("signature.svg", animate=True, fill=False, show_hand=True, 
+       hand_size=(120, 120), dur=0.03)
+```
 
 #### Important:
 - Fill color would only work if it's in hex and inside `<path>` tag. You must modify svg if it's not this way already.
