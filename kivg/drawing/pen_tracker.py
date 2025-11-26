@@ -5,7 +5,8 @@ This creates a writing effect where a hand image follows the drawing path.
 
 from kivy.graphics import Rectangle, Color, InstructionGroup
 from kivy.core.image import Image as CoreImage
-from typing import Any, Optional, Tuple
+from kivy.clock import Clock
+from typing import Any, Optional, Tuple, Callable
 import os
 
 
@@ -45,6 +46,10 @@ class PenTracker:
         self._is_active = False
         self._current_pos = (0, 0)
         
+        # Slide-out animation state
+        self._slide_out_event = None
+        self._slide_out_callback = None
+        
         # Load the hand image texture
         self._load_hand_texture()
     
@@ -81,7 +86,13 @@ class PenTracker:
         self.widget.canvas.after.add(self._hand_group)
     
     def stop(self) -> None:
-        """Stop tracking and hide the hand."""
+        """Stop tracking and hide the hand immediately."""
+        # Cancel any ongoing slide-out animation
+        if self._slide_out_event:
+            self._slide_out_event.cancel()
+            self._slide_out_event = None
+        self._slide_out_callback = None
+        
         self._is_active = False
         self.clear_hand()
     
@@ -134,3 +145,96 @@ class PenTracker:
     def current_position(self) -> Tuple[float, float]:
         """Get the current hand position."""
         return self._current_pos
+    
+    def slide_out(self, on_complete: Optional[Callable] = None, 
+                  duration: float = 0.3, step: float = 0.016) -> None:
+        """
+        Animate the hand sliding out of the widget.
+        
+        The hand slides to the right and slightly down as if lifting the hand
+        from the drawing surface.
+        
+        Args:
+            on_complete: Callback to call when slide-out animation completes
+            duration: Duration of the slide-out animation in seconds
+            step: Time step for animation updates in seconds
+        """
+        if not self._is_active or self._hand_texture is None:
+            if on_complete:
+                on_complete()
+            return
+        
+        self._slide_out_callback = on_complete
+        
+        # Calculate target position: slide to the right edge of widget and down
+        widget_right = self.widget.pos[0] + self.widget.size[0] + self.hand_size[0]
+        widget_bottom = self.widget.pos[1] - self.hand_size[1]
+        
+        # Starting position
+        start_x, start_y = self._current_pos
+        target_x = widget_right
+        target_y = widget_bottom
+        
+        # Animation state
+        self._slide_start_pos = (start_x, start_y)
+        self._slide_target_pos = (target_x, target_y)
+        self._slide_progress = 0.0
+        self._slide_duration = duration
+        self._slide_step = step
+        
+        # Start the animation
+        self._slide_out_event = Clock.schedule_interval(
+            self._update_slide_out, step
+        )
+    
+    def _update_slide_out(self, dt: float) -> bool:
+        """
+        Update the slide-out animation.
+        
+        Args:
+            dt: Delta time since last update
+            
+        Returns:
+            False to stop the animation, True to continue
+        """
+        self._slide_progress += dt / self._slide_duration
+        
+        if self._slide_progress >= 1.0:
+            # Animation complete
+            self._slide_progress = 1.0
+            self._finish_slide_out()
+            return False
+        
+        # Calculate current position using ease-out-quad for smooth deceleration
+        t = self._slide_progress
+        ease = -1.0 * t * (t - 2.0)  # out_quad easing
+        
+        start_x, start_y = self._slide_start_pos
+        target_x, target_y = self._slide_target_pos
+        
+        current_x = start_x + (target_x - start_x) * ease
+        current_y = start_y + (target_y - start_y) * ease
+        
+        self._current_pos = (current_x, current_y)
+        
+        if self._hand_rect:
+            self._hand_rect.pos = self._current_pos
+        
+        return True
+    
+    def _finish_slide_out(self) -> None:
+        """Complete the slide-out animation and clean up."""
+        # Cancel the animation event if still scheduled
+        if self._slide_out_event:
+            self._slide_out_event.cancel()
+            self._slide_out_event = None
+        
+        # Stop tracking and clear the hand
+        self._is_active = False
+        self.clear_hand()
+        
+        # Call the completion callback
+        if self._slide_out_callback:
+            callback = self._slide_out_callback
+            self._slide_out_callback = None
+            callback()
