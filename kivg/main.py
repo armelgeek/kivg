@@ -65,7 +65,12 @@ class Kivg:
         MeshHandler.render_mesh(self.widget, shapes, color, "mesh_opacity")
 
     def fill_up_shapes(self, *args) -> None:
-        """Fill all shapes in the current SVG file."""
+        """Fill all shapes in the current SVG file.
+        
+        Clears the canvas first to remove stroke lines from the drawing animation,
+        then renders filled shapes.
+        """
+        self.widget.canvas.clear()
         for id_, closed_paths in self.closed_shapes.items():
             color = self.closed_shapes[id_]["color"]
             self.fill_up(closed_paths[id_ + "shapes"], color)
