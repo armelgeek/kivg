@@ -95,12 +95,12 @@ def transform_path(path: str, x_offset: float, y_offset: float,
         path: SVG path string
         x_offset: X offset to apply
         y_offset: Y offset to apply
-        scale: Scale factor
+        scale: Scale factor to apply to coordinates
         flip_y: Whether to flip Y coordinates (fonts have Y going up, SVG has Y going down)
-        units_per_em: Font units per em (used for scaling)
+        units_per_em: Font units per em (reserved for future use, default 2048 is common)
         
     Returns:
-        Transformed path string
+        Transformed path string with coordinates adjusted by offset, scale, and optionally flipped
     """
     if not path:
         return ""
@@ -195,7 +195,8 @@ def transform_path(path: str, x_offset: float, y_offset: float,
                     large_arc = nums[j + 3]
                     sweep = nums[j + 4]
                     if flip_y:
-                        sweep = 1 - sweep  # Flip sweep direction when flipping Y
+                        # Flip sweep direction: 0 becomes 1, 1 becomes 0
+                        sweep = 1 if sweep == 0 else 0
                     x = nums[j + 5] * scale + x_offset
                     y = nums[j + 6]
                     if flip_y:
@@ -208,7 +209,15 @@ def transform_path(path: str, x_offset: float, y_offset: float,
         
         # Format the command with numbers
         if new_nums:
-            num_strs = [f"{n:.2f}".rstrip('0').rstrip('.') for n in new_nums]
+            # Format numbers with 2 decimal places, but avoid stripping trailing zeros
+            # from the integer part (e.g., 100.0 should remain 100, not become 1)
+            num_strs = []
+            for n in new_nums:
+                formatted = f"{n:.2f}"
+                # Only strip trailing zeros after decimal point
+                if '.' in formatted:
+                    formatted = formatted.rstrip('0').rstrip('.')
+                num_strs.append(formatted)
             result.append(cmd + " ".join(num_strs))
         else:
             result.append(cmd)

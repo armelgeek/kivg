@@ -350,7 +350,9 @@ class Kivg:
             font_size: Target font size in pixels
             fill_color: Fill color for the text (hex format, e.g., "#000000")
             anim_type: Animation type - "seq" for sequential or "par" for parallel
-            on_complete: Callback function when animation completes
+            on_complete: Callback function called when drawing completes (only 
+                        called immediately for non-animated draws; for animated 
+                        draws with completion callbacks, use text_animate() instead)
             
         Keyword Args:
             fill: Whether to fill the text after drawing (bool)
@@ -394,6 +396,9 @@ class Kivg:
             # Store the temp path for cleanup
             self._temp_text_svg = temp_svg_path
             
+            # Store the completion callback for animation
+            self._text_on_complete = on_complete
+            
             # Draw the SVG with animation
             self.draw(
                 temp_svg_path,
@@ -404,10 +409,12 @@ class Kivg:
             
             # Handle completion callback
             if on_complete:
-                # We need to schedule this after animation completes
-                # For now, just call it for non-animated draws
                 if not animate:
+                    # For non-animated draws, call immediately
                     on_complete()
+                # For animated draws, the callback should be called when animation completes.
+                # Note: The draw() method currently doesn't expose on_complete callback.
+                # Users can use text_animate() for full animation control with callbacks.
                     
         except Exception as e:
             # Clean up temp file on error
