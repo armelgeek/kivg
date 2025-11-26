@@ -239,5 +239,96 @@ class TestAnimationEasing:
         assert func == AnimationTransition.linear
 
 
+class TestTextToSVG:
+    """Tests for text-to-SVG conversion functionality."""
+
+    def test_create_text_to_svg(self):
+        """Test creating a TextToSVG instance."""
+        from kivg import TextToSVG
+
+        converter = TextToSVG(
+            font_family="sans-serif", font_size=40.0, font_weight="bold"
+        )
+        assert converter.font_family == "sans-serif"
+        assert converter.font_size == 40.0
+        assert converter.font_weight == "bold"
+
+    def test_get_text_dimensions(self):
+        """Test getting text dimensions."""
+        from kivg import TextToSVG
+
+        converter = TextToSVG(font_size=40.0)
+        width, height = converter.get_text_dimensions("Hello")
+
+        assert width > 0
+        assert height > 0
+        assert width > height  # Text should be wider than tall
+
+    def test_text_to_path_data(self):
+        """Test converting text to path data."""
+        from kivg import TextToSVG
+
+        converter = TextToSVG(font_size=40.0)
+        svg_size, paths = converter.text_to_path_data("Test")
+
+        assert len(svg_size) == 2
+        assert svg_size[0] > 0  # width
+        assert svg_size[1] > 0  # height
+        assert len(paths) >= 1  # At least one path should be created
+
+    def test_text_to_svg_paths(self):
+        """Test generating SVG content from text."""
+        from kivg import TextToSVG
+
+        converter = TextToSVG(font_size=40.0)
+        svg_content = converter.text_to_svg_paths("Hello")
+
+        assert "<?xml" in svg_content
+        assert "<svg" in svg_content
+        assert "<path" in svg_content
+        assert 'd="' in svg_content
+
+    def test_create_animated_text_svg(self):
+        """Test creating animated text SVG."""
+        from kivg import TextToSVG
+
+        converter = TextToSVG(font_size=40.0)
+        svg = converter.create_animated_text_svg(
+            "Hello",
+            duration=2.0,
+            stroke_color="#ff0000",
+            stroke_width=2.0,
+        )
+
+        assert "<?xml" in svg
+        assert "<svg" in svg
+        assert "@keyframes draw-text" in svg
+        assert "stroke-dasharray" in svg
+        assert "stroke-dashoffset" in svg
+        assert "animation" in svg
+
+    def test_create_text_animation_function(self):
+        """Test the create_text_animation convenience function."""
+        from kivg import create_text_animation
+
+        svg = create_text_animation(
+            "Hello World", duration=3.0, font_size=50.0, stroke_color="#000000"
+        )
+
+        assert "<?xml" in svg
+        assert "<svg" in svg
+        assert "@keyframes" in svg
+        assert "3.0s" in svg  # Duration should be in the animation
+
+    def test_text_to_svg_function(self):
+        """Test the text_to_svg convenience function."""
+        from kivg import text_to_svg
+
+        svg = text_to_svg("Test", font_size=30.0, font_weight="bold")
+
+        assert "<svg" in svg
+        assert "<path" in svg
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

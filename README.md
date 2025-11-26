@@ -134,6 +134,48 @@ svg_size, path_strings = parse_svg("my_drawing.svg")
 # path_strings: List of (path_data, id, color) tuples
 ```
 
+### Text to SVG Animation
+
+Create handwriting-style text animations:
+
+```python
+from kivg import TextToSVG, create_text_animation
+
+# Quick method - create animated text SVG
+svg = create_text_animation(
+    "Hello World!",
+    duration=2.0,          # Animation duration in seconds
+    font_size=40.0,        # Font size in points
+    stroke_color="#000000" # Stroke color
+)
+
+# Save to file
+with open("text_animation.svg", "w") as f:
+    f.write(svg)
+
+# Advanced usage with TextToSVG class
+converter = TextToSVG(
+    font_family="sans-serif",  # Font family
+    font_size=50.0,            # Font size
+    font_slant="italic",       # normal, italic, or oblique
+    font_weight="bold"         # normal or bold
+)
+
+# Get text dimensions
+width, height = converter.get_text_dimensions("My Text")
+
+# Create animated SVG with more options
+svg = converter.create_animated_text_svg(
+    "My Text",
+    duration=3.0,
+    stroke_color="#ff0000",
+    stroke_width=2.0,
+    fill_after_draw=True,      # Fill text after animation
+    fill_color="#000000",
+    background_color="#ffffff"
+)
+```
+
 ## Project Structure
 
 ```
@@ -142,6 +184,7 @@ kivg/
 ├── main.py             # SVGAnimator class
 ├── path_utils.py       # SVG path utilities
 ├── svg_parser.py       # SVG parsing functionality
+├── text_to_svg.py      # Text to SVG conversion
 ├── version.py          # Version information
 ├── animation/          # Animation utilities
 │   └── easing.py       # Easing functions
@@ -152,6 +195,12 @@ kivg/
 ```
 
 ## Changelog
+
+**v2.1**
+* Added text-to-SVG conversion for handwriting-style animations
+* New `TextToSVG` class for converting text to animated SVG paths
+* New `create_text_animation()` convenience function
+* Demo for text animation (`demo/test_text_animation.py`)
 
 **v2.0**
 * Complete rewrite - removed Kivy dependency
