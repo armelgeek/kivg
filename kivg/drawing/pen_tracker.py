@@ -166,7 +166,9 @@ class PenTracker:
         
         self._slide_out_callback = on_complete
         
-        # Calculate target position: slide to the right edge of widget and down
+        # Calculate target position: slide completely off the widget
+        # Add hand_size[0] to ensure the hand slides fully off the right edge
+        # Subtract hand_size[1] to slide below the widget bottom
         widget_right = self.widget.pos[0] + self.widget.size[0] + self.hand_size[0]
         widget_bottom = self.widget.pos[1] - self.hand_size[1]
         
@@ -205,9 +207,12 @@ class PenTracker:
             self._finish_slide_out()
             return False
         
-        # Calculate current position using ease-out-quad for smooth deceleration
+        # Ease-out-quadratic: starts fast and decelerates smoothly
+        # Formula: f(t) = -t * (t - 2) = -t^2 + 2t
+        # At t=0: f(0) = 0, at t=1: f(1) = 1
+        # Derivative: f'(t) = -2t + 2, so f'(0) = 2 (fast) and f'(1) = 0 (stops)
         t = self._slide_progress
-        ease = -1.0 * t * (t - 2.0)  # out_quad easing
+        ease = -1.0 * t * (t - 2.0)
         
         start_x, start_y = self._slide_start_pos
         target_x, target_y = self._slide_target_pos

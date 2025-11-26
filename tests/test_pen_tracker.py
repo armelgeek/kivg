@@ -2,7 +2,11 @@
 Unit tests for the PenTracker class.
 
 These tests use mock objects to test the slide_out logic without requiring
-a Kivy display/graphics context.
+a Kivy display/graphics context. The MockPenTracker class replicates the
+essential slide_out logic to enable testing in headless environments.
+
+Note: The mock implementation mirrors the real PenTracker's slide_out logic.
+If the real implementation changes, these tests should be updated accordingly.
 """
 import pytest
 from unittest.mock import MagicMock
@@ -24,9 +28,14 @@ class TestPenTrackerSlideOut:
 
     @pytest.fixture
     def mock_pen_tracker(self, mock_widget):
-        """Create a mock PenTracker for unit testing without graphics."""
-        # Instead of creating a real PenTracker (which requires graphics),
-        # we create a minimal mock that tests the slide_out logic
+        """
+        Create a mock PenTracker for unit testing without graphics.
+        
+        This mock replicates the slide_out logic from the real PenTracker
+        to enable testing without a Kivy display. The logic is intentionally
+        duplicated to test the algorithm independently of Kivy's graphics
+        context requirements.
+        """
         class MockPenTracker:
             def __init__(self, widget, hand_size=(100, 100), pen_offset=(10, 85)):
                 self.widget = widget
