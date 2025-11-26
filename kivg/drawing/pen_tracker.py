@@ -182,6 +182,15 @@ class PenTracker:
         self._slide_duration = duration
         self._slide_step = step
         self._slide_start_opacity = 1.0  # Start fully visible
+        # Store original color for fade effect
+        if self._hand_color:
+            self._slide_original_rgb = (
+                self._hand_color.r, 
+                self._hand_color.g, 
+                self._hand_color.b
+            )
+        else:
+            self._slide_original_rgb = (1, 1, 1)
         
         # Start the animation
         self._slide_out_event = Clock.schedule_interval(
@@ -227,7 +236,8 @@ class PenTracker:
         # Update opacity with fade effect (linear fade from 1 to 0)
         if self._hand_color:
             current_opacity = self._slide_start_opacity * (1.0 - ease)
-            self._hand_color.rgba = (1, 1, 1, current_opacity)
+            r, g, b = self._slide_original_rgb
+            self._hand_color.rgba = (r, g, b, current_opacity)
         
         return True
     
