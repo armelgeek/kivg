@@ -82,7 +82,7 @@ class TestPenTrackerSlideOut:
                 self._hand_rect = None
                 self._hand_color = None
             
-            def slide_out(self, on_complete=None, duration=0.3, step=0.016):
+            def slide_out(self, on_complete=None, duration=0.5, step=0.016):
                 if not self._is_active or self._hand_texture is None:
                     if on_complete:
                         on_complete()
@@ -90,12 +90,11 @@ class TestPenTrackerSlideOut:
                 
                 self._slide_out_callback = on_complete
                 
-                # Calculate target position
-                widget_right = self.widget.pos[0] + self.widget.size[0] + self.hand_size[0]
+                # Calculate target position - slide downward off the widget
                 widget_bottom = self.widget.pos[1] - self.hand_size[1]
                 
                 start_x, start_y = self._current_pos
-                target_x = widget_right
+                target_x = start_x  # Keep same x position - slide straight down
                 target_y = widget_bottom
                 
                 self._slide_start_pos = (start_x, start_y)
@@ -103,6 +102,7 @@ class TestPenTrackerSlideOut:
                 self._slide_progress = 0.0
                 self._slide_duration = duration
                 self._slide_step = step
+                self._slide_start_opacity = 1.0  # Start fully visible
                 
                 # Store mock event for testing
                 self._slide_out_event = MagicMock()
@@ -128,6 +128,11 @@ class TestPenTrackerSlideOut:
                 
                 if self._hand_rect:
                     self._hand_rect.pos = self._current_pos
+                
+                # Update opacity with fade effect
+                if self._hand_color:
+                    current_opacity = self._slide_start_opacity * (1.0 - ease)
+                    self._hand_color.rgba = (1, 1, 1, current_opacity)
                 
                 return True
             
@@ -163,9 +168,9 @@ class TestPenTrackerSlideOut:
         mock_pen_tracker.slide_out()
         
         # Check that the target position is calculated correctly
-        # widget_right = widget.pos[0] + widget.size[0] + hand_size[0]
-        # = 100 + 400 + 100 = 600
-        expected_target_x = 600
+        # Now slides straight down: x stays the same, y goes to widget bottom
+        # start_x = 200 - pen_offset[0] = 200 - 10 = 190
+        expected_target_x = mock_pen_tracker._slide_start_pos[0]  # Same as start x
         # widget_bottom = widget.pos[1] - hand_size[1]
         # = 100 - 100 = 0
         expected_target_y = 0
@@ -257,6 +262,25 @@ class TestPenTrackerSlideOut:
             assert current_x > start_x
         if target_y < start_y:
             assert current_y < start_y
+
+    def test_slide_out_fades_opacity(self, mock_pen_tracker):
+        """Test that slide_out gradually reduces opacity during animation."""
+        mock_pen_tracker.start()
+        mock_pen_tracker.update_position(200, 200)
+        
+        mock_pen_tracker.slide_out()
+        
+        # Simulate a progress update (dt = 0.1 seconds)
+        mock_pen_tracker._update_slide_out(0.1)
+        
+        # Check that opacity was reduced
+        assert mock_pen_tracker._hand_color.rgba[3] < 1.0
+        
+        # Simulate more progress
+        mock_pen_tracker._update_slide_out(0.1)
+        
+        # Opacity should be further reduced
+        assert mock_pen_tracker._hand_color.rgba[3] < 0.8
 
     def test_stop_cancels_slide_out_animation(self, mock_pen_tracker):
         """Test that stop() cancels any ongoing slide-out animation."""

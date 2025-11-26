@@ -147,11 +147,11 @@ class PenTracker:
         return self._current_pos
     
     def slide_out(self, on_complete: Optional[Callable] = None, 
-                  duration: float = 0.3, step: float = 0.016) -> None:
+                  duration: float = 0.5, step: float = 0.016) -> None:
         """
         Animate the hand sliding out of the widget.
         
-        The hand slides to the right and slightly down as if lifting the hand
+        The hand slides downward and fades out as if lifting the hand
         from the drawing surface.
         
         Args:
@@ -166,15 +166,13 @@ class PenTracker:
         
         self._slide_out_callback = on_complete
         
-        # Calculate target position: slide completely off the widget
-        # Add hand_size[0] to ensure the hand slides fully off the right edge
-        # Subtract hand_size[1] to slide below the widget bottom
-        widget_right = self.widget.pos[0] + self.widget.size[0] + self.hand_size[0]
+        # Calculate target position: slide downward off the widget
+        # Keep the same x position, only move down below the widget bottom
         widget_bottom = self.widget.pos[1] - self.hand_size[1]
         
         # Starting position
         start_x, start_y = self._current_pos
-        target_x = widget_right
+        target_x = start_x  # Keep same x position - slide straight down
         target_y = widget_bottom
         
         # Animation state
@@ -183,6 +181,7 @@ class PenTracker:
         self._slide_progress = 0.0
         self._slide_duration = duration
         self._slide_step = step
+        self._slide_start_opacity = 1.0  # Start fully visible
         
         # Start the animation
         self._slide_out_event = Clock.schedule_interval(
@@ -224,6 +223,11 @@ class PenTracker:
         
         if self._hand_rect:
             self._hand_rect.pos = self._current_pos
+        
+        # Update opacity with fade effect (linear fade from 1 to 0)
+        if self._hand_color:
+            current_opacity = self._slide_start_opacity * (1.0 - ease)
+            self._hand_color.rgba = (1, 1, 1, current_opacity)
         
         return True
     
