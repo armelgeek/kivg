@@ -16,7 +16,18 @@ def get_color_from_hex(hex_color: str) -> List[float]:
 
     Returns:
         List of [r, g, b, a] values from 0.0 to 1.0
+
+    Raises:
+        ValueError: If hex_color is not a valid hex color string.
+            Valid formats: '#fff', '#ffffff', '#ffffffff', 'fff', 'ffffff', 'ffffffff'
     """
+    # Validate input
+    if not hex_color or not isinstance(hex_color, str):
+        raise ValueError(
+            "Invalid hex color: expected a non-empty string. "
+            "Valid formats: '#fff', '#ffffff', '#ffffffff'"
+        )
+
     # Remove leading '#' if present
     hex_color = hex_color.lstrip("#")
 
@@ -39,7 +50,10 @@ def get_color_from_hex(hex_color: str) -> List[float]:
         a = int(hex_color[6:8], 16) / 255.0
         return [r, g, b, a]
     else:
-        raise ValueError(f"Invalid hex color format: {hex_color}")
+        raise ValueError(
+            f"Invalid hex color format: '{hex_color}'. "
+            "Valid formats: '#fff', '#ffffff', '#ffffffff' (with or without #)"
+        )
 
 
 def parse_svg(svg_file: str) -> Tuple[List[float], List[Tuple[str, str, List[float]]]]:

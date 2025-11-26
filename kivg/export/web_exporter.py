@@ -6,6 +6,9 @@ Generates web-compatible SVG animations using CSS or JavaScript.
 from typing import List, Dict, Optional, Any
 import json
 
+# Default stroke dash length for animations (should be larger than any path length)
+DEFAULT_DASH_LENGTH = 10000
+
 
 class WebAnimationExporter:
     """
@@ -34,6 +37,7 @@ class WebAnimationExporter:
         fill: bool = True,
         stroke_color: str = "#000000",
         stroke_width: int = 2,
+        dash_length: int = None,
     ) -> str:
         """
         Generate HTML with CSS-animated SVG paths.
@@ -47,10 +51,17 @@ class WebAnimationExporter:
             fill: Whether to fill paths after drawing
             stroke_color: Color of the stroke during animation
             stroke_width: Width of the stroke
+            dash_length: Length of dash array for animation (should be >= path length)
 
         Returns:
             HTML string with embedded CSS animations
         """
+        # Handle empty paths list
+        if not svg_paths:
+            return self._generate_empty_html()
+
+        dash_len = dash_length or DEFAULT_DASH_LENGTH
+
         # Generate unique IDs for each path
         path_elements = []
         css_rules = []
@@ -87,8 +98,8 @@ class WebAnimationExporter:
   <title>SVG Animation</title>
   <style>
     .animate-path {{
-      stroke-dasharray: 1000;
-      stroke-dashoffset: 1000;
+      stroke-dasharray: {dash_len};
+      stroke-dashoffset: {dash_len};
       animation: draw {duration}s ease forwards;
     }}
     
@@ -108,6 +119,21 @@ class WebAnimationExporter:
 </html>"""
 
         return html
+
+    def _generate_empty_html(self) -> str:
+        """Generate an empty HTML document with an SVG canvas."""
+        return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SVG Animation</title>
+</head>
+<body>
+  <svg width="{self.width}" height="{self.height}" viewBox="0 0 {self.width} {self.height}">
+  </svg>
+</body>
+</html>"""
 
     def generate_js_animation(
         self,
@@ -135,6 +161,10 @@ class WebAnimationExporter:
         Returns:
             HTML string with embedded JavaScript animations
         """
+        # Handle empty paths list
+        if not svg_paths:
+            return self._generate_empty_html()
+
         # Generate path elements
         path_elements = []
         path_configs = []
@@ -240,6 +270,7 @@ class WebAnimationExporter:
         fill: bool = True,
         stroke_color: str = "#000000",
         stroke_width: int = 2,
+        dash_length: int = None,
     ) -> str:
         """
         Generate standalone SVG with SMIL animations.
@@ -253,24 +284,34 @@ class WebAnimationExporter:
             fill: Whether to fill paths after drawing
             stroke_color: Color of the stroke during animation
             stroke_width: Width of the stroke
+            dash_length: Length of dash array for animation (should be >= path length)
 
         Returns:
             SVG string with embedded SMIL animations
         """
+        # Handle empty paths list
+        if not svg_paths:
+            return f"""<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" 
+     width="{self.width}" height="{self.height}" 
+     viewBox="0 0 {self.width} {self.height}">
+</svg>"""
+
+        dash_len = dash_length or DEFAULT_DASH_LENGTH
         path_elements = []
 
         for i, path_data in enumerate(svg_paths):
             d = path_data.get("d", "")
             path_fill = path_data.get("fill", "#ffffff") if fill else "none"
-            delay = i * (duration / max(len(svg_paths), 1))
+            delay = i * (duration / len(svg_paths))
 
             path_elements.append(
                 f"""  <path d="{d}" 
         fill="{path_fill}" stroke="{stroke_color}" 
         stroke-width="{stroke_width}"
-        stroke-dasharray="1000" stroke-dashoffset="1000">
+        stroke-dasharray="{dash_len}" stroke-dashoffset="{dash_len}">
     <animate attributeName="stroke-dashoffset" 
-             from="1000" to="0" 
+             from="{dash_len}" to="0" 
              dur="{duration}s" 
              begin="{delay}s" 
              fill="freeze"/>

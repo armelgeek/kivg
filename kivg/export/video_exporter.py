@@ -129,7 +129,13 @@ class VideoExporter:
             result = subprocess.run(cmd, capture_output=True, text=True)
 
             if result.returncode != 0:
-                raise RuntimeError(f"FFmpeg error: {result.stderr}")
+                cmd_str = " ".join(cmd)
+                error_output = result.stderr or result.stdout or "No error output"
+                raise RuntimeError(
+                    f"FFmpeg error (exit code {result.returncode}):\n"
+                    f"Command: {cmd_str}\n"
+                    f"Output: {error_output}"
+                )
 
         return output_path
 

@@ -22,6 +22,9 @@ class SVGAnimator:
     as web animations or video files.
     """
 
+    # Default stroke dash length for animations (should be larger than any path length)
+    DEFAULT_DASH_LENGTH = 10000
+
     def __init__(self, width: int = 800, height: int = 600):
         """
         Initialize the SVG animator.
@@ -177,6 +180,7 @@ class SVGAnimator:
         stroke_color: str = "#000000",
         stroke_width: int = 2,
         background_color: str = "#ffffff",
+        dash_length: int = None,
     ) -> List[str]:
         """
         Generate SVG frames for animation.
@@ -188,12 +192,14 @@ class SVGAnimator:
             stroke_color: Color of the stroke during animation
             stroke_width: Width of the stroke
             background_color: Background color
+            dash_length: Length of dash array for animation (should be >= path length)
 
         Returns:
             List of SVG content strings (one per frame)
         """
         paths = self.get_paths()
         frames = []
+        dash_len = dash_length or self.DEFAULT_DASH_LENGTH
 
         for frame_idx in range(num_frames):
             progress = frame_idx / max(num_frames - 1, 1)
@@ -205,12 +211,12 @@ class SVGAnimator:
                 path_fill = path_data.get("fill", "#ffffff") if fill else "none"
 
                 # Simple dash animation simulation
-                dash_offset = 1000 * (1 - progress)
+                dash_offset = dash_len * (1 - progress)
 
                 path_elements.append(
                     f'  <path d="{d}" fill="{path_fill}" '
                     f'stroke="{stroke_color}" stroke-width="{stroke_width}" '
-                    f'stroke-dasharray="1000" stroke-dashoffset="{dash_offset:.2f}" />'
+                    f'stroke-dasharray="{dash_len}" stroke-dashoffset="{dash_offset:.2f}" />'
                 )
 
             paths_str = "\n".join(path_elements)
