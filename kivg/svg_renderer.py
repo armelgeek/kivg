@@ -49,8 +49,10 @@ class SvgRenderer:
         This returns the end point of the element currently being drawn,
         which represents where the pen tip currently is during animation.
         
-        During sequential animation, this method finds the furthest drawn point
-        by checking all lines and bezier curves.
+        During sequential animation, this method finds the element that's
+        currently being animated (where start != end, indicating animation
+        has progressed) and returns its current end position. The hand should
+        lead the drawing, following the path as it's being drawn.
         
         Args:
             widget: Widget containing animation properties
@@ -66,9 +68,12 @@ class SvgRenderer:
         bezier_count = 0
         current_pos = None
         
-        # Iterate through all path elements to find the furthest drawn point
-        # This works because during sequential animation, completed elements have
-        # their final positions, and the current element has its animated position
+        # Iterate through all path elements to find the currently animating element.
+        # During sequential animation:
+        # - Elements that haven't started animating have end == start
+        # - Elements currently animating have end != start (animating toward target)
+        # - Completed elements have end == target
+        # We want the LAST element where animation has made progress (end != start)
         for element in path_elements:
             if isinstance(element, Line):
                 start_x = getattr(widget, f"line{line_count}_start_x", None)
@@ -77,22 +82,29 @@ class SvgRenderer:
                 end_y = getattr(widget, f"line{line_count}_end_y", None)
                 width = getattr(widget, f"line{line_count}_width", 0)
                 
-                # If this line has a width > 0, it's being drawn or was drawn
+                # Check if this element has been animated (end position differs from start)
+                # Use a small epsilon for floating point comparison
                 if all(v is not None for v in [start_x, start_y, end_x, end_y]) and width > 0:
-                    current_pos = (end_x, end_y)
+                    has_progress = abs(end_x - start_x) > 0.001 or abs(end_y - start_y) > 0.001
+                    if has_progress:
+                        current_pos = (end_x, end_y)
                     
                 line_count += 1
                     
             elif isinstance(element, CubicBezier):
+                start_x = getattr(widget, f"bezier{bezier_count}_start_x", None)
+                start_y = getattr(widget, f"bezier{bezier_count}_start_y", None)
                 end_x = getattr(widget, f"bezier{bezier_count}_end_x", None)
                 end_y = getattr(widget, f"bezier{bezier_count}_end_y", None)
                 width = getattr(widget, f"bezier{bezier_count}_width", 0)
                 
-                # If this bezier has a width > 0, it's being drawn or was drawn  
-                if end_x is not None and end_y is not None and width > 0:
-                    current_pos = (end_x, end_y)
+                # Check if this element has been animated (end position differs from start)
+                if all(v is not None for v in [start_x, start_y, end_x, end_y]) and width > 0:
+                    has_progress = abs(end_x - start_x) > 0.001 or abs(end_y - start_y) > 0.001
+                    if has_progress:
+                        current_pos = (end_x, end_y)
                     
-                bezier_count +=  1
+                bezier_count += 1
         
         return current_pos
     
