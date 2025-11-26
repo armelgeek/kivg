@@ -5,6 +5,7 @@ Converts text to SVG paths for handwriting-style animation.
 
 import io
 import re
+import xml.parsers.expat
 from typing import List, Tuple, Dict, Any, Optional
 from xml.dom import minidom
 
@@ -84,8 +85,8 @@ class TextToSVG:
         Returns:
             Tuple of (width, height) in pixels
         """
-        # Create a temporary surface to measure text
-        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 1, 1)
+        # Use RecordingSurface for efficient text measurement (doesn't allocate pixels)
+        surface = cairo.RecordingSurface(cairo.CONTENT_ALPHA, None)
         ctx = cairo.Context(surface)
 
         ctx.select_font_face(
@@ -187,8 +188,11 @@ class TextToSVG:
                     paths.append({"d": d, "fill": fill, "stroke": stroke})
 
             doc.unlink()
-        except Exception:
-            pass
+        except (xml.parsers.expat.ExpatError, ValueError) as e:
+            # Log parsing error but return empty paths rather than failing
+            import warnings
+
+            warnings.warn(f"Failed to parse SVG content: {e}")
 
         return paths
 
@@ -228,6 +232,7 @@ class TextToSVG:
         fill_after_draw: bool = False,
         fill_color: str = "#000000",
         background_color: str = "#ffffff",
+        dash_length: int = None,
     ) -> str:
         """
         Create an SVG with animated text (handwriting effect).
@@ -240,6 +245,8 @@ class TextToSVG:
             fill_after_draw: Whether to fill the text after animation
             fill_color: Fill color after animation
             background_color: Background color
+            dash_length: Length of dash array for animation. If None, calculated
+                based on SVG width. Should be >= path length for proper animation.
 
         Returns:
             Complete SVG string with CSS animation
@@ -257,7 +264,9 @@ class TextToSVG:
 
         # Build path elements
         path_elements = []
-        dash_length = 10000  # Should be larger than any path length
+        # Calculate dash_length based on SVG width if not provided
+        # Use a multiplier to ensure it's larger than any character path
+        calculated_dash_length = dash_length or int(svg_size[0] * 50)
 
         for i, path_data in enumerate(paths):
             d = path_data.get("d", "")
@@ -277,8 +286,8 @@ class TextToSVG:
      viewBox="0 0 {svg_size[0]} {svg_size[1]}">
   <style>
     .animate-text {{
-      stroke-dasharray: {dash_length};
-      stroke-dashoffset: {dash_length};
+      stroke-dasharray: {calculated_dash_length};
+      stroke-dashoffset: {calculated_dash_length};
       animation: draw-text {duration}s ease forwards;
     }}
 
