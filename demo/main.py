@@ -98,7 +98,16 @@ class KivgDemo(App):
         self.show_button_icon()
 
     def animate(self, svg_file):
-        self.s.draw(svg_file, animate=True, fill=True, line_width=1)
+        self.s.draw(
+            svg_file, 
+            animate=True, 
+            fill=False,              # Désactiver le remplissage pour voir le tracé
+            line_width=3,            # Trait plus épais pour mieux voir
+            show_hand=True,          # Afficher la main qui dessine
+            hand_size=(150, 150),    # Main plus grande pour mieux voir
+            dur=0.02,                # Animation un peu plus lente
+            pen_offset=(25, 120)     # Ajuster la position du stylo (x, y depuis le coin supérieur gauche de l'image)
+        )
     
     def shape_animate(self, svg_file, config):
         self.sf = svg_file

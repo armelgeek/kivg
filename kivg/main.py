@@ -52,6 +52,7 @@ class Kivg:
         # Pen tracking state
         self._pen_tracker: Optional[PenTracker] = None
         self._show_hand = False
+        self._current_pen_pos: Optional[Tuple[float, float]] = None  # Store current pen position
 
     def fill_up(self, shapes: List[List[float]], color: List[float]) -> None:
         """
@@ -114,17 +115,21 @@ class Kivg:
         """Update the canvas with the current drawing state."""
         SvgRenderer.update_canvas(self.widget, self.path, self._line_color)
         
+        # Update and store current pen position
+        pen_pos = SvgRenderer.get_current_pen_position(self.widget, self.path)
+        if pen_pos:
+            self._current_pen_pos = pen_pos
+        
         # Update pen tracker position if active
-        if self._pen_tracker and self._pen_tracker.is_active:
-            pen_pos = SvgRenderer.get_current_pen_position(self.widget, self.path)
-            if pen_pos:
-                self._pen_tracker.update_position(*pen_pos)
+        if self._pen_tracker and self._pen_tracker.is_active and self._current_pen_pos:
+            self._pen_tracker.update_position(*self._current_pen_pos)
     
     def _on_draw_complete(self, *args) -> None:
         """Handle completion of draw animation."""
         # Stop and hide pen tracker
         if self._pen_tracker:
             self._pen_tracker.stop()
+        self._current_pen_pos = None
 
     def draw(self, svg_file: str, animate: bool = False, 
              anim_type: str = "seq", *args, **kwargs) -> None:

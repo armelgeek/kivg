@@ -46,8 +46,11 @@ class SvgRenderer:
         """
         Get the current pen position during animation.
         
-        This returns the end point of the last element being drawn,
-        which represents where the pen tip currently is.
+        This returns the end point of the element currently being drawn,
+        which represents where the pen tip currently is during animation.
+        
+        During sequential animation, this method finds the furthest drawn point
+        by checking all lines and bezier curves.
         
         Args:
             widget: Widget containing animation properties
@@ -61,25 +64,37 @@ class SvgRenderer:
         
         line_count = 0
         bezier_count = 0
-        last_pos = None
+        current_pos = None
         
-        # Find the last active drawing position
+        # Iterate through all path elements to find the furthest drawn point
+        # This works because during sequential animation, completed elements have
+        # their final positions, and the current element has its animated position
         for element in path_elements:
             if isinstance(element, Line):
+                start_x = getattr(widget, f"line{line_count}_start_x", None)
+                start_y = getattr(widget, f"line{line_count}_start_y", None)
                 end_x = getattr(widget, f"line{line_count}_end_x", None)
                 end_y = getattr(widget, f"line{line_count}_end_y", None)
-                if end_x is not None and end_y is not None:
-                    last_pos = (end_x, end_y)
+                width = getattr(widget, f"line{line_count}_width", 0)
+                
+                # If this line has a width > 0, it's being drawn or was drawn
+                if all(v is not None for v in [start_x, start_y, end_x, end_y]) and width > 0:
+                    current_pos = (end_x, end_y)
+                    
                 line_count += 1
                     
             elif isinstance(element, CubicBezier):
                 end_x = getattr(widget, f"bezier{bezier_count}_end_x", None)
                 end_y = getattr(widget, f"bezier{bezier_count}_end_y", None)
-                if end_x is not None and end_y is not None:
-                    last_pos = (end_x, end_y)
-                bezier_count += 1
+                width = getattr(widget, f"bezier{bezier_count}_width", 0)
+                
+                # If this bezier has a width > 0, it's being drawn or was drawn  
+                if end_x is not None and end_y is not None and width > 0:
+                    current_pos = (end_x, end_y)
+                    
+                bezier_count +=  1
         
-        return last_pos
+        return current_pos
     
     @staticmethod
     def _draw_line(widget, line_index: int) -> None:
