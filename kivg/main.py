@@ -3,6 +3,8 @@ Kivg - SVG drawing and animation for Kivy
 Core class and main API
 """
 
+import os
+import tempfile
 from collections import OrderedDict
 from typing import List, Tuple, Dict, Any, Callable, Optional
 
@@ -12,6 +14,11 @@ from kivg.animation.handler import AnimationHandler
 from kivg.mesh_handler import MeshHandler
 from kivg.svg_renderer import SvgRenderer
 from kivg.drawing.pen_tracker import PenTracker
+from kivg.text_to_svg import (
+    text_to_svg_file,
+    get_text_animation_config,
+    find_system_font
+)
 
 
 class Kivg:
@@ -53,6 +60,18 @@ class Kivg:
         self._pen_tracker: Optional[PenTracker] = None
         self._show_hand = False
         self._current_pen_pos: Optional[Tuple[float, float]] = None  # Store current pen position
+        
+        # Temporary file management for text rendering
+        self._temp_text_svg: Optional[str] = None
+
+    def _cleanup_temp_svg(self) -> None:
+        """Clean up temporary SVG file if it exists."""
+        if self._temp_text_svg and os.path.exists(self._temp_text_svg):
+            try:
+                os.unlink(self._temp_text_svg)
+            except OSError:
+                pass  # Ignore cleanup errors
+            self._temp_text_svg = None
 
     def fill_up(self, shapes: List[List[float]], color: List[float]) -> None:
         """
@@ -306,3 +325,191 @@ class Kivg:
             # In case there are config items but no animations were created
             if on_complete:
                 on_complete()
+
+    def draw_text(
+        self,
+        text: str,
+        animate: bool = True,
+        font_path: Optional[str] = None,
+        font_size: float = 100.0,
+        fill_color: str = "#000000",
+        anim_type: str = "seq",
+        on_complete: Optional[Callable] = None,
+        **kwargs
+    ) -> None:
+        """
+        Draw and animate text like handwriting.
+        
+        This method converts text to SVG paths and animates the drawing
+        to create a handwriting effect suitable for whiteboards.
+        
+        Args:
+            text: Text string to draw and animate
+            animate: Whether to animate the drawing process
+            font_path: Path to TTF/OTF font file. If None, uses system default.
+            font_size: Target font size in pixels
+            fill_color: Fill color for the text (hex format, e.g., "#000000")
+            anim_type: Animation type - "seq" for sequential or "par" for parallel
+            on_complete: Callback function called when drawing completes (only 
+                        called immediately for non-animated draws; for animated 
+                        draws with completion callbacks, use text_animate() instead)
+            
+        Keyword Args:
+            fill: Whether to fill the text after drawing (bool)
+            line_width: Width of lines (int)
+            line_color: Color of lines during drawing (list of RGBA values)
+            dur: Duration of each animation step (float)
+            show_hand: Whether to show a hand image following the pen (bool)
+            hand_image: Path to custom hand image file (str)
+            hand_size: Size of hand image as (width, height) tuple
+            pen_offset: Offset of pen tip in hand image as (x, y) tuple
+            
+        Example:
+            >>> kivg = Kivg(widget)
+            >>> kivg.draw_text("Hello World", animate=True, font_size=80)
+        """
+        # Find font if not specified
+        if font_path is None:
+            font_path = find_system_font()
+            if font_path is None:
+                raise ValueError(
+                    "No font file found. Please specify a font_path parameter."
+                )
+        
+        # Clean up any previous temporary file
+        self._cleanup_temp_svg()
+        
+        # Create temporary SVG file from text
+        fd, temp_svg_path = tempfile.mkstemp(suffix='.svg')
+        os.close(fd)
+        
+        try:
+            # Convert text to SVG
+            text_to_svg_file(
+                text=text,
+                output_path=temp_svg_path,
+                font_path=font_path,
+                font_size=font_size,
+                fill_color=fill_color
+            )
+            
+            # Store the temp path for cleanup
+            self._temp_text_svg = temp_svg_path
+            
+            # Store the completion callback for animation
+            self._text_on_complete = on_complete
+            
+            # Draw the SVG with animation
+            self.draw(
+                temp_svg_path,
+                animate=animate,
+                anim_type=anim_type,
+                **kwargs
+            )
+            
+            # Handle completion callback
+            if on_complete:
+                if not animate:
+                    # For non-animated draws, call immediately
+                    on_complete()
+                # For animated draws, the callback should be called when animation completes.
+                # Note: The draw() method currently doesn't expose on_complete callback.
+                # Users can use text_animate() for full animation control with callbacks.
+                    
+        except Exception as e:
+            # Clean up temp file on error
+            if os.path.exists(temp_svg_path):
+                os.unlink(temp_svg_path)
+            raise e
+
+    def text_animate(
+        self,
+        text: str,
+        font_path: Optional[str] = None,
+        font_size: float = 100.0,
+        fill_color: str = "#000000",
+        animation_type: str = "from_center_y",
+        duration_per_char: float = 0.15,
+        transition: str = "out_bounce",
+        on_complete: Optional[Callable] = None
+    ) -> None:
+        """
+        Animate text with shape animation effects (each character appears separately).
+        
+        This method creates a more dramatic text animation where each character
+        appears with its own animation effect, similar to shape_animate().
+        
+        Args:
+            text: Text string to animate
+            font_path: Path to TTF/OTF font file. If None, uses system default.
+            font_size: Target font size in pixels
+            fill_color: Fill color for the text (hex format)
+            animation_type: Type of animation effect:
+                - "from_left": Characters slide in from left
+                - "from_right": Characters slide in from right
+                - "from_top": Characters drop from top
+                - "from_bottom": Characters rise from bottom
+                - "from_center_x": Characters grow horizontally from center
+                - "from_center_y": Characters grow vertically from center
+                - "sequential": Characters appear without directional animation
+            duration_per_char: Duration of animation per character in seconds
+            transition: Kivy animation transition type (e.g., "out_bounce", 
+                       "out_back", "out_elastic")
+            on_complete: Callback function when animation completes
+            
+        Example:
+            >>> kivg = Kivg(widget)
+            >>> kivg.text_animate(
+            ...     "Hello",
+            ...     animation_type="from_top",
+            ...     transition="out_bounce"
+            ... )
+        """
+        # Find font if not specified
+        if font_path is None:
+            font_path = find_system_font()
+            if font_path is None:
+                raise ValueError(
+                    "No font file found. Please specify a font_path parameter."
+                )
+        
+        # Clean up any previous temporary file
+        self._cleanup_temp_svg()
+        
+        # Create temporary SVG file from text
+        fd, temp_svg_path = tempfile.mkstemp(suffix='.svg')
+        os.close(fd)
+        
+        try:
+            # Convert text to SVG
+            text_to_svg_file(
+                text=text,
+                output_path=temp_svg_path,
+                font_path=font_path,
+                font_size=font_size,
+                fill_color=fill_color
+            )
+            
+            # Store the temp path for cleanup
+            self._temp_text_svg = temp_svg_path
+            
+            # Generate animation config for each character
+            anim_config = get_text_animation_config(
+                text=text,
+                animation_type=animation_type,
+                duration_per_char=duration_per_char,
+                transition=transition
+            )
+            
+            # Use shape_animate to animate the text
+            self.shape_animate(
+                temp_svg_path,
+                anim_config_list=anim_config,
+                on_complete=on_complete
+            )
+            
+        except Exception as e:
+            # Clean up temp file on error
+            if os.path.exists(temp_svg_path):
+                os.unlink(temp_svg_path)
+            raise e

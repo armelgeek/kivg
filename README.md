@@ -97,6 +97,79 @@ s.shape_animate("text.svg", anim_config_list=anim_config, on_complete=lambda *ar
 - Dictionary order in the list is important - animations run in the sequence provided
 - Animations can be chained by using the on_complete callback for continuous effects
 
+#
+
+### Text Animation (Whiteboard Writing Effect)
+
+Kivg now supports converting text to SVG paths and animating them like handwriting on a whiteboard.
+
+#### Basic Text Drawing with Handwriting Animation
+
+```python
+from kivg import Kivg
+
+s = Kivg(my_widget)
+
+# Draw text with handwriting animation effect
+s.draw_text(
+    "Hello World",
+    animate=True,
+    font_size=100,
+    fill_color="#000000",
+    show_hand=True,  # Show hand/pen during animation
+    dur=0.01
+)
+```
+
+#### Parameters:
+- **text** : The text string to draw and animate
+- **animate** : Whether to animate the drawing process. Defaults to `True`
+- **font_path** : Path to TTF/OTF font file. If not specified, uses system default
+- **font_size** : Target font size in pixels. Defaults to `100`
+- **fill_color** : Fill color for the text in hex format. Defaults to `"#000000"`
+- **anim_type** : Animation type - `"seq"` for sequential or `"par"` for parallel. Defaults to `"seq"`
+- All other parameters from the `draw()` method are also supported (fill, line_width, show_hand, etc.)
+
+#### Text Animation with Character Effects
+
+For more dramatic animations where each character appears separately:
+
+```python
+from kivg import Kivg
+
+s = Kivg(my_widget)
+
+# Animate each character with bounce effect
+s.text_animate(
+    "Kivy",
+    font_size=150,
+    fill_color="#4CAF50",
+    animation_type="from_top",     # Characters drop from top
+    duration_per_char=0.3,
+    transition="out_bounce"
+)
+```
+
+#### Animation Types:
+- `"from_left"` : Characters slide in from the left
+- `"from_right"` : Characters slide in from the right
+- `"from_top"` : Characters drop from the top
+- `"from_bottom"` : Characters rise from the bottom
+- `"from_center_x"` : Characters grow horizontally from center
+- `"from_center_y"` : Characters grow vertically from center
+- `"sequential"` : Characters appear without directional animation
+
+#### Using Custom Fonts
+
+```python
+# Use a custom font
+s.draw_text(
+    "Custom Font",
+    font_path="/path/to/your/font.ttf",
+    font_size=80
+)
+```
+
 ## Project Structure
 
 The project is organized into the following main components:
@@ -110,6 +183,7 @@ kivg/
 ├── path_utils.py       # SVG path utilities
 ├── svg_parser.py       # SVG parsing functionality
 ├── svg_renderer.py     # SVG rendering engine
+├── text_to_svg.py      # Text to SVG conversion for whiteboard effects
 ├── version.py          # Version information
 ├── animation/          # Animation subsystem
 │   ├── animation_shapes.py  # Shape-specific animations
