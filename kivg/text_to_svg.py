@@ -31,6 +31,11 @@ class TextToSVG:
     FONT_WEIGHT_NORMAL = "normal"
     FONT_WEIGHT_BOLD = "bold"
 
+    # Layout constants
+    TEXT_PADDING = 20  # Padding around text in pixels
+    HEIGHT_MULTIPLIER = 1.5  # Multiplier for text height calculation
+    DASH_LENGTH_MULTIPLIER = 50  # Multiplier for dash array calculation
+
     def __init__(
         self,
         font_family: str = "sans-serif",
@@ -100,9 +105,9 @@ class TextToSVG:
         extents = ctx.text_extents(text)
         x_advance = extents[4]  # x_advance is the 5th element
 
-        # Add some padding
-        width = x_advance + 20
-        height = self.font_size * 1.5 + 20
+        # Add padding around text
+        width = x_advance + self.TEXT_PADDING
+        height = self.font_size * self.HEIGHT_MULTIPLIER + self.TEXT_PADDING
 
         surface.finish()
         return (width, height)
@@ -265,8 +270,10 @@ class TextToSVG:
         # Build path elements
         path_elements = []
         # Calculate dash_length based on SVG width if not provided
-        # Use a multiplier to ensure it's larger than any character path
-        calculated_dash_length = dash_length or int(svg_size[0] * 50)
+        # Use DASH_LENGTH_MULTIPLIER to ensure it's larger than any character path
+        calculated_dash_length = dash_length or int(
+            svg_size[0] * self.DASH_LENGTH_MULTIPLIER
+        )
 
         for i, path_data in enumerate(paths):
             d = path_data.get("d", "")
