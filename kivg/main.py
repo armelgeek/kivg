@@ -203,22 +203,32 @@ class Kivg:
         if not from_shape_anim:
             if animate:
                 # Combine animations according to anim_type
-                anim = AnimationHandler.create_animation_sequence(
+                draw_anim = AnimationHandler.create_animation_sequence(
                     anim_list, sequential=(anim_type == "seq")
                 )
+                
+                # Bind update_canvas only to drawing animation progress
+                draw_anim.bind(on_progress=self.update_canvas)
                 
                 # Add fill animation if needed
                 if fill:
                     setattr(self.widget, "mesh_opacity", 0)
-                    anim = AnimationHandler.add_fill_animation(
-                        anim, self.widget, self.fill_up_shapes
-                    )
+                    # Create fill animation and bind fill_up_shapes to its progress
+                    fill_anim = Animation(d=0.4, mesh_opacity=1)
+                    fill_anim.bind(on_progress=self.fill_up_shapes)
+                    # Chain drawing animation with fill animation
+                    anim = draw_anim + fill_anim
+                else:
+                    anim = draw_anim
                 
-                # Start the animation with completion callback for pen tracker
-                AnimationHandler.prepare_and_start_animation(
-                    anim, self.widget, self.update_canvas, 
-                    on_complete_callback=self._on_draw_complete if self._show_hand else None
-                )
+                # Cancel any existing animations and start the new one
+                anim.cancel_all(self.widget)
+                
+                # Add completion callback for pen tracker if needed
+                if self._show_hand:
+                    anim.bind(on_complete=self._on_draw_complete)
+                    
+                anim.start(self.widget)
             else:
                 # Static rendering
                 Animation.cancel_all(self.widget)
