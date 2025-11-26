@@ -131,9 +131,14 @@ class Kivg:
     
     def _on_draw_complete(self, *args) -> None:
         """Handle completion of draw animation."""
-        # Stop and hide pen tracker
+        # Slide out the hand with animation instead of stopping immediately
         if self._pen_tracker:
-            self._pen_tracker.stop()
+            self._pen_tracker.slide_out(on_complete=self._on_hand_slide_complete)
+        else:
+            self._current_pen_pos = None
+    
+    def _on_hand_slide_complete(self) -> None:
+        """Handle completion of hand slide-out animation."""
         self._current_pen_pos = None
 
     def draw(self, svg_file: str, animate: bool = False, 
