@@ -38,6 +38,10 @@ setup(
         "Operating System :: Microsoft :: Windows",
         "Operating System :: OS Independent"
     ],
-    install_requires=["kivy>=2.0.0", "svg.path==4.1"],
+    install_requires=["svg.path==4.1"],
+    extras_require={
+        "kivy": ["kivy>=2.0.0"],
+        "dev": ["pytest>=7.0.0", "black>=23.0.0", "typing-extensions>=4.0.0"],
+    },
     python_requires=">=3.6",
 )

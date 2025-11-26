@@ -1,5 +1,8 @@
 svg.path==4.1
-Kivy==2.3.1
 typing-extensions>=4.0.0
 pytest>=7.0.0
 black>=23.0.0
+
+# Optional: Kivy is required only for desktop rendering
+# Install with: pip install kivg[kivy]
+# kivy>=2.0.0
