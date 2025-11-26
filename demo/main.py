@@ -15,9 +15,10 @@ Usage:
 import argparse
 import os
 import sys
+from pathlib import Path
 
 # Add parent directory to path to import kivg
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from kivg import SVGAnimator
 
@@ -159,7 +160,7 @@ Examples:
             on_progress=progress_callback,
         )
         print(f"\nSuccess! Video saved to: {output_file}")
-        print(f"File size: {os.path.getsize(output_file) / 1024:.1f} KB")
+        print(f"File size: {os.path.getsize(output_file) / 1024:.1f} KiB")
     except RuntimeError as e:
         print(f"\nError: {e}")
         sys.exit(1)
