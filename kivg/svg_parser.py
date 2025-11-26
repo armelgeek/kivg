@@ -2,56 +2,53 @@
 SVG parsing utilities for Kivg.
 Handles parsing SVG files and extracting path data.
 """
+
 from typing import Tuple, List, Dict, Any
 from xml.dom import minidom
 
-# Try to import Kivy's color utility, fall back to custom implementation
-try:
-    from kivy.utils import get_color_from_hex
-except ImportError:
-    def get_color_from_hex(hex_color: str) -> List[float]:
-        """
-        Convert a hex color string to RGBA values (0.0-1.0).
-        
-        Fallback implementation for when Kivy is not available.
-        
-        Args:
-            hex_color: Hex color string (e.g., '#ffffff', '#fff', 'ffffff')
-            
-        Returns:
-            List of [r, g, b, a] values from 0.0 to 1.0
-        """
-        # Remove leading '#' if present
-        hex_color = hex_color.lstrip('#')
-        
-        # Handle shorthand notation (e.g., '#fff' -> '#ffffff')
-        if len(hex_color) == 3:
-            hex_color = ''.join([c * 2 for c in hex_color])
-        elif len(hex_color) == 4:
-            hex_color = ''.join([c * 2 for c in hex_color])
-        
-        # Parse the color components
-        if len(hex_color) == 6:
-            r = int(hex_color[0:2], 16) / 255.0
-            g = int(hex_color[2:4], 16) / 255.0
-            b = int(hex_color[4:6], 16) / 255.0
-            return [r, g, b, 1.0]
-        elif len(hex_color) == 8:
-            r = int(hex_color[0:2], 16) / 255.0
-            g = int(hex_color[2:4], 16) / 255.0
-            b = int(hex_color[4:6], 16) / 255.0
-            a = int(hex_color[6:8], 16) / 255.0
-            return [r, g, b, a]
-        else:
-            raise ValueError(f"Invalid hex color format: {hex_color}")
+
+def get_color_from_hex(hex_color: str) -> List[float]:
+    """
+    Convert a hex color string to RGBA values (0.0-1.0).
+
+    Args:
+        hex_color: Hex color string (e.g., '#ffffff', '#fff', 'ffffff')
+
+    Returns:
+        List of [r, g, b, a] values from 0.0 to 1.0
+    """
+    # Remove leading '#' if present
+    hex_color = hex_color.lstrip("#")
+
+    # Handle shorthand notation (e.g., '#fff' -> '#ffffff')
+    if len(hex_color) == 3:
+        hex_color = "".join([c * 2 for c in hex_color])
+    elif len(hex_color) == 4:
+        hex_color = "".join([c * 2 for c in hex_color])
+
+    # Parse the color components
+    if len(hex_color) == 6:
+        r = int(hex_color[0:2], 16) / 255.0
+        g = int(hex_color[2:4], 16) / 255.0
+        b = int(hex_color[4:6], 16) / 255.0
+        return [r, g, b, 1.0]
+    elif len(hex_color) == 8:
+        r = int(hex_color[0:2], 16) / 255.0
+        g = int(hex_color[2:4], 16) / 255.0
+        b = int(hex_color[4:6], 16) / 255.0
+        a = int(hex_color[6:8], 16) / 255.0
+        return [r, g, b, a]
+    else:
+        raise ValueError(f"Invalid hex color format: {hex_color}")
+
 
 def parse_svg(svg_file: str) -> Tuple[List[float], List[Tuple[str, str, List[float]]]]:
     """
     Parse an SVG file and extract relevant information.
-    
+
     Args:
         svg_file: Path to the SVG file
-        
+
     Returns:
         Tuple containing (svg_dimensions, path_data)
             - svg_dimensions: [width, height]
@@ -65,7 +62,7 @@ def parse_svg(svg_file: str) -> Tuple[List[float], List[Tuple[str, str, List[flo
     # Extract viewBox
     svg_element = doc.getElementsByTagName("svg")[0]
     viewbox_string = svg_element.getAttribute("viewBox")
-    
+
     # Parse viewBox dimensions
     if "," in viewbox_string:
         sw_size = list(map(float, viewbox_string.split(",")[2:]))
@@ -83,9 +80,9 @@ def parse_svg(svg_file: str) -> Tuple[List[float], List[Tuple[str, str, List[flo
             clr = get_color_from_hex(fill_attr) if fill_attr else [1, 1, 1, 0]
         except ValueError:
             clr = [1, 1, 1, 0]  # Default if color format is different
-        
+
         path_strings.append((d, id_, clr))
         path_count += 1
-    
+
     doc.unlink()
     return sw_size, path_strings

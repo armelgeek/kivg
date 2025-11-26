@@ -20,28 +20,29 @@ def get_version() -> str:
 setup(
     name="Kivg",
     version=get_version(),
-    packages=["kivg"],
-    package_data={"kivg": ["*.py", "animation/*.py", "drawing/*.py", "assets/*.png"]},
+    packages=["kivg", "kivg.animation", "kivg.drawing", "kivg.export"],
+    package_data={"kivg": ["*.py", "animation/*.py", "drawing/*.py", "export/*.py", "assets/*.png"]},
     include_package_data=True,
     # metadata to display on PyPI
     author="Shashi Ranjan",
     author_email="shashiranjankv@gmail.com",
-    description="SVG path drawing and animation support in kivy application",
+    description="SVG path drawing and animation with video export support",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    keywords="svg svg-animations svg-path svg-images kivy-application kivy python",
+    keywords="svg svg-animations svg-path svg-images video ffmpeg python web",
     url="https://github.com/shashi278/svg-anim-kivy",
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
-        "Operating System :: Android",
-        "Operating System :: Microsoft :: Windows",
         "Operating System :: OS Independent"
     ],
-    install_requires=["svg.path==4.1"],
+    install_requires=[
+        "svg.path==4.1",
+        "Pillow>=10.0.0",
+        "cairosvg>=2.7.0",
+    ],
     extras_require={
-        "kivy": ["kivy>=2.0.0"],
         "dev": ["pytest>=7.0.0", "black>=23.0.0", "typing-extensions>=4.0.0"],
     },
-    python_requires=">=3.6",
+    python_requires=">=3.8",
 )
