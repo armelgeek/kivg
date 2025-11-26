@@ -21,7 +21,8 @@ setup(
     name="Kivg",
     version=get_version(),
     packages=["kivg"],
-    package_data={"kivg": ["*.py", "animation/*.py", "drawing/*.py"]},
+    package_data={"kivg": ["*.py", "animation/*.py", "drawing/*.py", "assets/*.png"]},
+    include_package_data=True,
     # metadata to display on PyPI
     author="Shashi Ranjan",
     author_email="shashiranjankv@gmail.com",

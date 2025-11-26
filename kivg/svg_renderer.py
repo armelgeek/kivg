@@ -42,6 +42,46 @@ class SvgRenderer:
                     bezier_count += 1
     
     @staticmethod
+    def get_current_pen_position(widget, path_elements: List) -> Optional[Tuple[float, float]]:
+        """
+        Get the current pen position during animation.
+        
+        This returns the end point of the last element being drawn,
+        which represents where the pen tip currently is.
+        
+        Args:
+            widget: Widget containing animation properties
+            path_elements: List of SVG path elements
+            
+        Returns:
+            Tuple of (x, y) coordinates of current pen position, or None if not found
+        """
+        if not path_elements:
+            return None
+        
+        line_count = 0
+        bezier_count = 0
+        last_pos = None
+        
+        # Find the last active drawing position
+        for element in path_elements:
+            if isinstance(element, Line):
+                end_x = getattr(widget, f"line{line_count}_end_x", None)
+                end_y = getattr(widget, f"line{line_count}_end_y", None)
+                if end_x is not None and end_y is not None:
+                    last_pos = (end_x, end_y)
+                line_count += 1
+                    
+            elif isinstance(element, CubicBezier):
+                end_x = getattr(widget, f"bezier{bezier_count}_end_x", None)
+                end_y = getattr(widget, f"bezier{bezier_count}_end_y", None)
+                if end_x is not None and end_y is not None:
+                    last_pos = (end_x, end_y)
+                bezier_count += 1
+        
+        return last_pos
+    
+    @staticmethod
     def _draw_line(widget, line_index: int) -> None:
         """Draw a line element on the canvas."""
         KivyLine(
