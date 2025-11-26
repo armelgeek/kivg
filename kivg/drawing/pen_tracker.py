@@ -101,7 +101,7 @@ class PenTracker:
         # pen_offset is specified from top-left of image, but Kivy uses bottom-left
         # So we need to convert: offset_from_bottom = hand_height - offset_from_top
         hand_x = x - self.pen_offset[0]
-        hand_y = y - (self.hand_size[1] - self.pen_offset[1])
+        hand_y = y - self.pen_offset[1]
         
         self._current_pos = (hand_x, hand_y)
         
