@@ -60,6 +60,18 @@ class Kivg:
         self._pen_tracker: Optional[PenTracker] = None
         self._show_hand = False
         self._current_pen_pos: Optional[Tuple[float, float]] = None  # Store current pen position
+        
+        # Temporary file management for text rendering
+        self._temp_text_svg: Optional[str] = None
+
+    def _cleanup_temp_svg(self) -> None:
+        """Clean up temporary SVG file if it exists."""
+        if self._temp_text_svg and os.path.exists(self._temp_text_svg):
+            try:
+                os.unlink(self._temp_text_svg)
+            except OSError:
+                pass  # Ignore cleanup errors
+            self._temp_text_svg = None
 
     def fill_up(self, shapes: List[List[float]], color: List[float]) -> None:
         """
@@ -362,6 +374,9 @@ class Kivg:
                     "No font file found. Please specify a font_path parameter."
                 )
         
+        # Clean up any previous temporary file
+        self._cleanup_temp_svg()
+        
         # Create temporary SVG file from text
         fd, temp_svg_path = tempfile.mkstemp(suffix='.svg')
         os.close(fd)
@@ -450,6 +465,9 @@ class Kivg:
                 raise ValueError(
                     "No font file found. Please specify a font_path parameter."
                 )
+        
+        # Clean up any previous temporary file
+        self._cleanup_temp_svg()
         
         # Create temporary SVG file from text
         fd, temp_svg_path = tempfile.mkstemp(suffix='.svg')

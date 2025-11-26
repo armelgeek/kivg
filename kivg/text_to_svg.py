@@ -260,8 +260,9 @@ def text_to_svg_paths(
     
     for line_idx, line in enumerate(lines):
         current_x = 0
+        non_space_char_idx = 0  # Counter for non-space characters only
         
-        for char_idx, char in enumerate(line):
+        for char in line:
             if char == ' ':
                 # Get space width
                 glyph_set = font.getGlyphSet()
@@ -286,9 +287,11 @@ def text_to_svg_paths(
                     units_per_em=units_per_em
                 )
                 
-                char_id = f"char_{line_idx}_{char_idx}"
+                # Use non_space_char_idx to match animation config IDs
+                char_id = f"char_{line_idx}_{non_space_char_idx}"
                 paths.append(f'<path fill="{fill_color}" id="{char_id}" d="{transformed}"/>')
             
+            non_space_char_idx += 1
             current_x += glyph_width * scale + letter_spacing
         
         max_width = max(max_width, current_x)
