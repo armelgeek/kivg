@@ -1,5 +1,6 @@
 svg.path==4.1
-Kivy==2.3.1
+Pillow>=10.0.0
+cairosvg>=2.7.0
 typing-extensions>=4.0.0
 pytest>=7.0.0
 black>=23.0.0

@@ -1,308 +1,289 @@
 """
-Kivg - SVG drawing and animation for Kivy
-Core class and main API
+Kivg - SVG drawing and animation
+Core class and main API (Kivy-free implementation)
 """
 
 from collections import OrderedDict
 from typing import List, Tuple, Dict, Any, Callable, Optional
 
-from kivg.animation.kivy_animation import Animation
-from kivg.drawing.manager import DrawingManager
-from kivg.animation.handler import AnimationHandler
-from kivg.mesh_handler import MeshHandler
-from kivg.svg_renderer import SvgRenderer
-from kivg.drawing.pen_tracker import PenTracker
+from .svg_parser import parse_svg
+from .path_utils import get_all_points, bezier_points, line_points
+from .export import VideoExporter, WebAnimationExporter
+
+from svg.path import parse_path
+from svg.path.path import Line, CubicBezier, Close, Move
 
 
-class Kivg:
+class SVGAnimator:
     """
-    Main class for rendering and animating SVG files in Kivy applications.
-    
-    This class provides methods to draw SVG files onto Kivy widgets and
-    animate them using various techniques.
+    Main class for processing and animating SVG files.
+
+    This class provides methods to parse SVG files and export them
+    as web animations or video files.
     """
 
-    def __init__(self, widget: Any, *args):
+    # Default stroke dash length for animations (should be larger than any path length)
+    DEFAULT_DASH_LENGTH = 10000
+
+    def __init__(self, width: int = 800, height: int = 600):
         """
-        Initialize the Kivg renderer.
-        
+        Initialize the SVG animator.
+
         Args:
-            widget: Kivy widget to draw SVG upon
-            *args: Additional arguments (not currently used)
+            width: Output width in pixels
+            height: Output height in pixels
         """
-        self.widget = widget  # Target widget for rendering
-        self._fill = True  # Fill path with color after drawing
+        self.width = width
+        self.height = height
+        self._fill = True
         self._line_width = 2
-        self._line_color = [0, 0, 0, 1]
-        self._animation_duration = 0.02
-        self._previous_svg_file = ""  # Cache previous SVG file
-        
-        # Animation state
+        self._line_color = "#000000"
+        self._animation_duration = 2.0
+
+        # Parsed data
+        self.svg_size = []
+        self.closed_shapes = OrderedDict()
+        self.path = []
+        self.current_svg_file = ""
+
+        # Exporters
+        self._video_exporter = None
+        self._web_exporter = None
+
+    @property
+    def video_exporter(self) -> VideoExporter:
+        """Get or create the video exporter."""
+        if self._video_exporter is None:
+            self._video_exporter = VideoExporter(self.width, self.height)
+        return self._video_exporter
+
+    @property
+    def web_exporter(self) -> WebAnimationExporter:
+        """Get or create the web animation exporter."""
+        if self._web_exporter is None:
+            self._web_exporter = WebAnimationExporter(self.width, self.height)
+        return self._web_exporter
+
+    def load_svg(self, svg_file: str) -> Dict[str, Any]:
+        """
+        Load and parse an SVG file.
+
+        Args:
+            svg_file: Path to the SVG file
+
+        Returns:
+            Dictionary with parsed SVG data
+        """
+        self.current_svg_file = svg_file
+        self.svg_size, path_strings = parse_svg(svg_file)
+
         self.path = []
         self.closed_shapes = OrderedDict()
-        self.svg_size = []
-        self.current_svg_file = ""
-        
-        # Shape animation state
-        self.all_anim = []
-        self.curr_count = 0
-        self.prev_shapes = []
-        self.curr_shape = []
-        
-        # Pen tracking state
-        self._pen_tracker: Optional[PenTracker] = None
-        self._show_hand = False
-        self._current_pen_pos: Optional[Tuple[float, float]] = None  # Store current pen position
 
-    def fill_up(self, shapes: List[List[float]], color: List[float]) -> None:
+        for path_string, id_, clr in path_strings:
+            move_found = False
+            tmp = []
+            self.closed_shapes[id_] = dict()
+            self.closed_shapes[id_][id_ + "paths"] = []
+            self.closed_shapes[id_][id_ + "shapes"] = []
+            self.closed_shapes[id_]["color"] = clr
+            self.closed_shapes[id_]["d"] = path_string
+
+            _path = parse_path(path_string)
+            for e in _path:
+                self.path.append(e)
+
+                if isinstance(e, Close) or (isinstance(e, Move) and move_found):
+                    self.closed_shapes[id_][id_ + "paths"].append(tmp)
+                    move_found = False
+
+                if isinstance(e, Move):
+                    tmp = []
+                    move_found = True
+
+                if not isinstance(e, Move) and move_found:
+                    tmp.append(e)
+
+        return {
+            "svg_size": self.svg_size,
+            "shapes": self.closed_shapes,
+            "path_count": len(self.path),
+        }
+
+    def get_paths(self) -> List[Dict[str, Any]]:
         """
-        Fill shapes with specified color using mesh rendering.
-        
+        Get all paths from the loaded SVG.
+
+        Returns:
+            List of path dictionaries with 'd' and 'fill' keys
+        """
+        paths = []
+        for id_, shape_data in self.closed_shapes.items():
+            color = shape_data.get("color", [1, 1, 1, 1])
+            # Convert RGBA list to hex color
+            r, g, b = int(color[0] * 255), int(color[1] * 255), int(color[2] * 255)
+            hex_color = f"#{r:02x}{g:02x}{b:02x}"
+
+            paths.append({"id": id_, "d": shape_data.get("d", ""), "fill": hex_color})
+        return paths
+
+    def export_to_web(
+        self,
+        output_file: str,
+        method: str = "css",
+        duration: float = 2.0,
+        fill: bool = True,
+        stroke_color: str = "#000000",
+        stroke_width: int = 2,
+    ) -> str:
+        """
+        Export the loaded SVG as a web animation.
+
         Args:
-            shapes: List of shape point lists to fill
-            color: RGB or RGBA color to fill with
-        """
-        MeshHandler.render_mesh(self.widget, shapes, color, "mesh_opacity")
+            output_file: Path to output HTML file
+            method: Animation method ('css', 'js', or 'smil')
+            duration: Animation duration in seconds
+            fill: Whether to fill paths after drawing
+            stroke_color: Color of the stroke during animation
+            stroke_width: Width of the stroke
 
-    def fill_up_shapes(self, *args) -> None:
-        """Fill all shapes in the current SVG file.
-        
-        Clears the canvas first to remove stroke lines from the drawing animation,
-        then renders filled shapes.
+        Returns:
+            Path to the created file
         """
-        self.widget.canvas.clear()
-        for id_, closed_paths in self.closed_shapes.items():
-            color = self.closed_shapes[id_]["color"]
-            self.fill_up(closed_paths[id_ + "shapes"], color)
-    
-    def fill_up_shapes_anim(self, shapes: List[Tuple[List[float], List[float]]], *args) -> None:
-        """Fill shapes during animation."""
-        for shape in shapes:
-            color = shape[0]
-            self.fill_up([shape[1]], color)
-    
-    def anim_on_comp(self, *args) -> None:
-        """Handle completion of an animation in the sequence."""
-        self.curr_count += 1
-        self.prev_shapes.append(self.curr_shape)
-        
-        if self.curr_count < len(self.all_anim):
-            id_, animation = self.all_anim[self.curr_count]
-            setattr(self, "curr_id", id_)
-            setattr(self, "curr_clr", self.closed_shapes[id_]["color"])
-            
-            # Clear previous bindings and add new ones
-            animation.unbind(on_progress=self.track_progress)
-            animation.unbind(on_complete=self.anim_on_comp)
-            
-            animation.bind(on_progress=self.track_progress)
-            animation.bind(on_complete=self.anim_on_comp)
-            
-            animation.start(self.widget)
-    
-    def track_progress(self, *args) -> None:
-        """
-        Track animation progress and update the canvas.
-        
-        Called during animation progress. Updates the current shape.
-        """
-        id_ = getattr(self, "curr_id")
-        elements_list = getattr(self, f"{id_}_tmp")
+        paths = self.get_paths()
 
-        shape_list = SvgRenderer.collect_shape_points(elements_list, self.widget, id_)
-        
-        self.widget.canvas.clear()
-        self.curr_shape = (getattr(self, "curr_clr"), shape_list)
-        shapes = [*self.prev_shapes, self.curr_shape]
-        self.fill_up_shapes_anim(shapes)
-
-    def update_canvas(self, *args, **kwargs) -> None:
-        """Update the canvas with the current drawing state."""
-        SvgRenderer.update_canvas(self.widget, self.path, self._line_color)
-        
-        # Update and store current pen position
-        pen_pos = SvgRenderer.get_current_pen_position(self.widget, self.path)
-        if pen_pos:
-            self._current_pen_pos = pen_pos
-        
-        # Update pen tracker position if active
-        if self._pen_tracker and self._pen_tracker.is_active and self._current_pen_pos:
-            self._pen_tracker.update_position(*self._current_pen_pos)
-    
-    def _on_draw_complete(self, *args) -> None:
-        """Handle completion of draw animation."""
-        # Slide out the hand with animation instead of stopping immediately
-        if self._pen_tracker:
-            self._pen_tracker.slide_out(on_complete=self._on_hand_slide_complete)
-        else:
-            self._current_pen_pos = None
-    
-    def _on_hand_slide_complete(self) -> None:
-        """Handle completion of hand slide-out animation."""
-        self._current_pen_pos = None
-
-    def draw(self, svg_file: str, animate: bool = False, 
-             anim_type: str = "seq", *args, **kwargs) -> None:
-        """
-        Draw an SVG file onto the widget with optional animation.
-        
-        Args:
-            svg_file: Path to the SVG file
-            animate: Whether to animate the drawing process
-            anim_type: Animation type - "seq" for sequential or "par" for parallel
-            
-        Keyword Args:
-            fill: Whether to fill the drawing (bool)
-            line_width: Width of lines (int)
-            line_color: Color of lines (list)
-            dur: Duration of each animation step (float)
-            from_shape_anim: Whether called from shape_animate (bool)
-            show_hand: Whether to show a hand image following the pen (bool)
-            hand_image: Path to custom hand image file (str)
-            hand_size: Size of hand image as (width, height) tuple
-            pen_offset: Offset of pen tip in hand image as (x, y) tuple
-        """
-        # Process arguments
-        fill = kwargs.get("fill", self._fill)
-        line_width = kwargs.get("line_width", self._line_width)
-        line_color = kwargs.get("line_color", self._line_color)
-        duration = kwargs.get("dur", self._animation_duration)
-        from_shape_anim = kwargs.get("from_shape_anim", False)
-        anim_type = anim_type if anim_type in ("seq", "par") else "seq"
-        
-        # Pen tracking options
-        show_hand = kwargs.get("show_hand", False)
-        hand_image = kwargs.get("hand_image", None)
-        hand_size = kwargs.get("hand_size", (100, 100))
-        pen_offset = kwargs.get("pen_offset", (10, 85))
-        
-        # Set current values as instance attributes for other methods to access
-        self._fill = fill
-        self._line_width = line_width
-        self._line_color = line_color
-        self._animation_duration = duration
-        self.current_svg_file = svg_file
-        self._show_hand = show_hand and animate  # Only show hand when animating
-        
-        # Initialize pen tracker if needed
-        if self._show_hand:
-            self._pen_tracker = PenTracker(
-                self.widget, 
-                hand_image=hand_image,
-                hand_size=hand_size,
-                pen_offset=pen_offset
+        if method == "css":
+            html = self.web_exporter.generate_css_animation(
+                paths, duration, fill, stroke_color, stroke_width
             )
-            self._pen_tracker.start()
+        elif method == "js":
+            html = self.web_exporter.generate_js_animation(
+                paths, duration, fill, stroke_color, stroke_width
+            )
+        elif method == "smil":
+            html = self.web_exporter.generate_svg_smil(
+                paths, duration, fill, stroke_color, stroke_width
+            )
         else:
-            if self._pen_tracker:
-                self._pen_tracker.stop()
-            self._pen_tracker = None
-        
-        # Only process SVG if it's different from the previous one
-        if svg_file != self._previous_svg_file:
-            self.svg_size, self.closed_shapes, self.path = DrawingManager.process_path_data(svg_file)
-            self._previous_svg_file = svg_file
-        
-        # Calculate the paths and get animation list
-        anim_list = DrawingManager.calculate_paths(
-            self.widget, self.closed_shapes, self.svg_size, 
-            svg_file, animate, line_width, duration
-        )
-        
-        # Handle animation and rendering
-        if not from_shape_anim:
-            if animate:
-                # Combine animations according to anim_type
-                draw_anim = AnimationHandler.create_animation_sequence(
-                    anim_list, sequential=(anim_type == "seq")
-                )
-                
-                # Bind update_canvas only to drawing animation progress
-                draw_anim.bind(on_progress=self.update_canvas)
-                
-                # Add fill animation if needed
-                if fill:
-                    setattr(self.widget, "mesh_opacity", 0)
-                    # Create fill animation and bind fill_up_shapes to its progress
-                    fill_anim = Animation(d=0.4, mesh_opacity=1)
-                    fill_anim.bind(on_progress=self.fill_up_shapes)
-                    # Chain drawing animation with fill animation
-                    anim = draw_anim + fill_anim
-                else:
-                    anim = draw_anim
-                
-                # Cancel any existing animations and start the new one
-                anim.cancel_all(self.widget)
-                
-                # Add completion callback for pen tracker if needed
-                if self._show_hand:
-                    anim.bind(on_complete=self._on_draw_complete)
-                    
-                anim.start(self.widget)
-            else:
-                # Static rendering
-                Animation.cancel_all(self.widget)
-                if not fill:
-                    self.update_canvas()
-                else:
-                    self.widget.canvas.clear()
-                    self.fill_up_shapes()
+            raise ValueError(f"Unknown animation method: {method}")
 
-    def shape_animate(self, svg_file: str, anim_config_list: List[Dict] = None, 
-                     on_complete: Callable = None) -> None:
+        with open(output_file, "w", encoding="utf-8") as f:
+            f.write(html)
+
+        return output_file
+
+    def generate_animation_frames(
+        self,
+        num_frames: int = 60,
+        duration: float = 2.0,
+        fill: bool = True,
+        stroke_color: str = "#000000",
+        stroke_width: int = 2,
+        background_color: str = "#ffffff",
+        dash_length: int = None,
+    ) -> List[str]:
         """
-        Animate individual shapes in an SVG file.
-        
+        Generate SVG frames for animation.
+
         Args:
-            svg_file: Path to the SVG file
-            anim_config_list: List of animation configurations, each containing:
-                - id_: Shape ID to animate
-                - from_: Direction of animation
-                - d: Duration (optional)
-                - t: Transition (optional)
-            on_complete: Function to call when all animations complete
-        """
-        if anim_config_list is None:
-            anim_config_list = []
-            
-        # First draw the SVG without animation
-        self.draw(svg_file, from_shape_anim=True)
-        setattr(self.widget, "mesh_opacity", 1)
+            num_frames: Number of frames to generate
+            duration: Total animation duration in seconds
+            fill: Whether to fill paths after drawing
+            stroke_color: Color of the stroke during animation
+            stroke_width: Width of the stroke
+            background_color: Background color
+            dash_length: Length of dash array for animation (should be >= path length)
 
-        # Initialize animation state
-        self.all_anim = []
-        self.curr_count = 0
-        self.prev_shapes = []
-        self.curr_shape = []
-        
-        # Prepare animations using AnimationHandler
-        self.all_anim = AnimationHandler.prepare_shape_animations(
-            self,
-            self.widget,
-            anim_config_list,
-            self.closed_shapes,
-            self.svg_size,
-            self.current_svg_file
+        Returns:
+            List of SVG content strings (one per frame)
+        """
+        paths = self.get_paths()
+        frames = []
+        dash_len = dash_length or self.DEFAULT_DASH_LENGTH
+
+        for frame_idx in range(num_frames):
+            progress = frame_idx / max(num_frames - 1, 1)
+
+            # Generate SVG for this frame
+            path_elements = []
+            for path_data in paths:
+                d = path_data.get("d", "")
+                path_fill = path_data.get("fill", "#ffffff") if fill else "none"
+
+                # Simple dash animation simulation
+                dash_offset = dash_len * (1 - progress)
+
+                path_elements.append(
+                    f'  <path d="{d}" fill="{path_fill}" '
+                    f'stroke="{stroke_color}" stroke-width="{stroke_width}" '
+                    f'stroke-dasharray="{dash_len}" stroke-dashoffset="{dash_offset:.2f}" />'
+                )
+
+            paths_str = "\n".join(path_elements)
+
+            svg = f"""<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" 
+     width="{self.width}" height="{self.height}" 
+     viewBox="0 0 {self.svg_size[0]} {self.svg_size[1]}">
+  <rect width="100%" height="100%" fill="{background_color}"/>
+{paths_str}
+</svg>"""
+
+            frames.append(svg)
+
+        return frames
+
+    def export_to_video(
+        self,
+        output_file: str,
+        fps: int = 30,
+        duration: float = 2.0,
+        fill: bool = True,
+        stroke_color: str = "#000000",
+        stroke_width: int = 2,
+        background_color: str = "#ffffff",
+        codec: str = "libx264",
+        quality: int = 23,
+        on_progress: Optional[Callable[[int, int], None]] = None,
+    ) -> str:
+        """
+        Export the loaded SVG animation as a video file.
+
+        Args:
+            output_file: Path to output video file (e.g., 'animation.mp4')
+            fps: Frames per second
+            duration: Animation duration in seconds
+            fill: Whether to fill paths after drawing
+            stroke_color: Color of the stroke during animation
+            stroke_width: Width of the stroke
+            background_color: Background color
+            codec: Video codec to use
+            quality: Video quality (0-51, lower is better)
+            on_progress: Optional callback(current_frame, total_frames)
+
+        Returns:
+            Path to the created video file
+        """
+        num_frames = int(fps * duration)
+
+        frames = self.generate_animation_frames(
+            num_frames=num_frames,
+            duration=duration,
+            fill=fill,
+            stroke_color=stroke_color,
+            stroke_width=stroke_width,
+            background_color=background_color,
         )
-        
-        # Start animations if any are ready
-        if self.all_anim:
-            id_, animation = self.all_anim[0]
-            setattr(self, "curr_id", id_)
-            setattr(self, "curr_clr", self.closed_shapes[id_]["color"])
-            
-            # Attach progress tracking
-            animation.bind(on_progress=self.track_progress)
-            
-            # Attach completion callback if provided
-            if on_complete and self.all_anim:
-                self.all_anim[-1][1].bind(on_complete=on_complete)
-            
-            # Start the animation
-            animation.cancel_all(self.widget)
-            animation.bind(on_complete=self.anim_on_comp)
-            animation.start(self.widget)
-        elif anim_config_list:
-            # In case there are config items but no animations were created
-            if on_complete:
-                on_complete()
+
+        # Update video exporter settings
+        self.video_exporter.fps = fps
+        self.video_exporter.width = self.width
+        self.video_exporter.height = self.height
+
+        return self.video_exporter.export_svg_animation(
+            frames, output_file, codec, quality, on_progress
+        )
+
+
+# Alias for backward compatibility
+Kivg = SVGAnimator

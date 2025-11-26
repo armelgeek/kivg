@@ -1,20 +1,18 @@
 ## Kivg
-*SVG path drawing and animation support in kivy application*
+*SVG path drawing and animation with web and video export support*
 
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/shashi278/kivg/.github%2Fworkflows%2Fpython-publish.yml) [![Python 3.6](https://img.shields.io/pypi/pyversions/kivymd)](https://www.python.org/downloads/release/python-360/) [![pypi](https://img.shields.io/pypi/v/kivg)](https://pypi.org/project/Kivg/) [![code size](https://img.shields.io/github/languages/code-size/shashi278/svg-anim-kivy)]() [![license](https://img.shields.io/github/license/shashi278/svg-anim-kivy)](https://github.com/shashi278/svg-anim-kivy/blob/main/LICENSE) [![downloads](https://img.shields.io/pypi/dm/kivg)](https://pypi.org/project/Kivg/) ![Pepy Total Downloads](https://img.shields.io/pepy/dt/kivg?label=Total%20Downloads)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/shashi278/kivg/.github%2Fworkflows%2Fpython-publish.yml) [![Python 3.8](https://img.shields.io/pypi/pyversions/kivymd)](https://www.python.org/downloads/release/python-380/) [![pypi](https://img.shields.io/pypi/v/kivg)](https://pypi.org/project/Kivg/) [![code size](https://img.shields.io/github/languages/code-size/shashi278/svg-anim-kivy)]() [![license](https://img.shields.io/github/license/shashi278/svg-anim-kivy)](https://github.com/shashi278/svg-anim-kivy/blob/main/LICENSE) [![downloads](https://img.shields.io/pypi/dm/kivg)](https://pypi.org/project/Kivg/) ![Pepy Total Downloads](https://img.shields.io/pepy/dt/kivg?label=Total%20Downloads)
 
 
 #
 
 ## Features
-| **Path Drawing & filling** | **Shape Animation** |
-| :-------------: |:-------------:|
-| <img src="https://raw.githubusercontent.com/shashi278/svg-anim-kivy/main/demo/svg_demo.gif" width=300> | <img src="https://raw.githubusercontent.com/shashi278/svg-anim-kivy/main/demo/adv_svg_anim.gif" width=300> |
 
-Now you can take some of the advantages svg offers, in your kivy apps. Those are:
-- [x] Compact file size compare to other formats - reduced asset size
-- [x] Scalability - Draw them big or small
-- [x] Interactivity - Animations
+- **SVG Parsing**: Parse SVG files and extract path data
+- **Web Animations**: Export SVG animations as HTML with CSS or JavaScript
+- **Video Export**: Convert SVG animations to video files using FFmpeg
+- **Cross-Platform**: Works on any platform with Python support
+- **No GUI Dependencies**: Pure Python implementation, works in headless environments
 
 #
 
@@ -23,159 +21,144 @@ Now you can take some of the advantages svg offers, in your kivy apps. Those are
 pip install kivg
 ```
 
+### Requirements
+- Python 3.8+
+- FFmpeg (for video export) - [Download FFmpeg](https://ffmpeg.org/download.html)
+
 ## Usage Guide
 
-Kivg helps you easily draw and animate SVG files in your Kivy applications.
-
-### Path Drawing and Filling
+### Basic Usage
 
 ```python
-from kivg import Kivg
+from kivg import SVGAnimator
 
-s = Kivg(my_widget)
+# Create an animator
+animator = SVGAnimator(width=800, height=600)
 
-# call draw method with a `svg_file` name
-s.draw("github.svg", fill=False, animate=True, anim_type="seq")
+# Load an SVG file
+animator.load_svg("my_drawing.svg")
+
+# Export as web animation (HTML with CSS)
+animator.export_to_web("animation.html", method="css", duration=2.0)
+
+# Export as video (requires FFmpeg)
+animator.export_to_video("animation.mp4", fps=30, duration=2.0)
 ```
 
-#### Parameters:
-- **fill** : *Whether to fill the shape after drawing*. Defaults to `True`
-- **animate** : *Whether to animate drawing*. Defaults to `False`
-- **anim_type** : *Whether to draw in sequence or parallel. Available `"seq"` and `"par"`*. Defaults to `"seq"`
-- **line_width** : *Width of the path stroke*. Defaults to `2`
-- **line_color** : *Color of the path stroke in RGBA format*. Defaults to `[0, 0, 0, 1]`
-- **dur** : *Duration of each animation step in seconds*. Defaults to `0.02`
-- **show_hand** : *Whether to show a hand image following the pen during animation*. Defaults to `False`
-- **hand_image** : *Path to custom hand image file*. Defaults to built-in hand image
-- **hand_size** : *Size of hand image as (width, height) tuple*. Defaults to `(100, 100)`
-- **pen_offset** : *Offset of pen tip in hand image as (x, y) tuple*. Defaults to `(10, 85)`
+### Web Animation Export
 
-#### Hand/Pen Tracking Effect
+Kivg supports three types of web animations:
 
-To create a realistic writing effect with a hand following the pen:
+#### CSS Animation
+```python
+animator.export_to_web(
+    "animation.html",
+    method="css",        # Use CSS @keyframes
+    duration=2.0,        # Animation duration in seconds
+    fill=True,           # Fill paths after drawing
+    stroke_color="#000", # Stroke color during animation
+    stroke_width=2       # Stroke width
+)
+```
+
+#### JavaScript Animation
+```python
+animator.export_to_web(
+    "animation.html",
+    method="js",         # Use requestAnimationFrame
+    duration=2.0,
+    fill=True,
+    stroke_color="#000",
+    stroke_width=2
+)
+```
+
+#### SMIL Animation (Standalone SVG)
+```python
+animator.export_to_web(
+    "animation.svg",
+    method="smil",       # Use SVG SMIL animations
+    duration=2.0,
+    fill=True
+)
+```
+
+### Video Export
+
+Export animations as video files using FFmpeg:
 
 ```python
-s.draw("signature.svg", animate=True, fill=False, show_hand=True, 
-       hand_size=(120, 120), dur=0.03)
+animator.export_to_video(
+    "animation.mp4",
+    fps=30,              # Frames per second
+    duration=2.0,        # Animation duration
+    fill=True,           # Fill paths after drawing
+    stroke_color="#000", # Stroke color
+    stroke_width=2,      # Stroke width
+    background_color="#ffffff",  # Background color
+    codec="libx264",     # Video codec
+    quality=23,          # Quality (0-51, lower is better)
+    on_progress=lambda current, total: print(f"{current}/{total}")
+)
 ```
 
-#### Important:
-- Fill color would only work if it's in hex and inside `<path>` tag. You must modify svg if it's not this way already.
-- Gradient is not yet supported - default to `#ffffff` if can't parse color
+### Direct Exporter Usage
 
-#
-
-### Shape Animation
+You can also use the exporters directly:
 
 ```python
-from kivg import Kivg
+from kivg import VideoExporter, WebAnimationExporter
 
-s = Kivg(my_widget)
+# Web exporter
+web_exporter = WebAnimationExporter(width=800, height=600)
+html = web_exporter.generate_css_animation(
+    svg_paths=[{"d": "M10 10 L100 100", "fill": "#ff0000"}],
+    duration=2.0
+)
 
-anim_config = [
-    { "id_":"k", "from_":"center_x", "t":"out_back",   "d":.4 },
-    { "id_":"i", "from_":"center_y", "t":"out_bounce", "d":.4 },
-    { "id_":"v", "from_":"top",      "t":"out_quint",  "d":.4 },
-    { "id_":"y", "from_":"bottom",   "t":"out_back",   "d":.4 }
-]
-
-# call shape_animate method with `svg_file` and an animation config list and optional callback
-s.shape_animate("text.svg", anim_config_list=anim_config, on_complete=lambda *args: print("Completed!"))
+# Video exporter
+video_exporter = VideoExporter(width=800, height=600, fps=30)
+video_exporter.export_svg_animation(svg_frames, "output.mp4")
 ```
 
-#### Animation Configuration:
-- **anim_config_list** : A list of dicts where each dict contain config for an `id`. Description of each key:
-    - `"id_"` : `id` of svg `<path>` tag. It's required so each dict must contain `"id_"` key
-    - `"from_"` : Direction from which a path should grow. Accepted values `"left"`, `"right"`, `"top"`, `"bottom"`, `"center_x"`(grow from center along horizontal axis), `"center_y"`, and `None`(Draw without animation). Defaults to `None`.
-    - `"t"` : [Animation transition](https://kivy.org/doc/stable/api-kivy.animation.html?highlight=animation#kivy.animation.AnimationTransition). Defaults to `"out_sine"`.
-    - `"d"` : Duration of animation. It'll still in-effect if `"from_"` is set to `None`. Defaults to .3
+### SVG Parsing Only
 
-- **on_complete** (optional) : Function to call after entire animation is finished. It can be used to create looping animation
+If you just need to parse SVG files:
 
-#### Important:
-- You must add a unique `id` to each path element you want to animate
-- Dictionary order in the list is important - animations run in the sequence provided
-- Animations can be chained by using the on_complete callback for continuous effects
+```python
+from kivg import parse_svg
+
+# Parse an SVG file
+svg_size, path_strings = parse_svg("my_drawing.svg")
+# svg_size: [width, height]
+# path_strings: List of (path_data, id, color) tuples
+```
 
 ## Project Structure
-
-The project is organized into the following main components:
 
 ```
 kivg/
 ├── __init__.py         # Package entry point
-├── data_classes.py     # Data structures for animation contexts
-├── main.py             # Core Kivg class implementation
-├── mesh_handler.py     # Handles mesh rendering 
+├── main.py             # SVGAnimator class
 ├── path_utils.py       # SVG path utilities
 ├── svg_parser.py       # SVG parsing functionality
-├── svg_renderer.py     # SVG rendering engine
 ├── version.py          # Version information
-├── animation/          # Animation subsystem
-│   ├── animation_shapes.py  # Shape-specific animations
-│   ├── handler.py           # Animation coordination
-│   └── kivy_animation.py    # Kivy animation file with some modifications
-└── drawing/            # Drawing subsystem
-    └── manager.py      # Drawing management
+├── animation/          # Animation utilities
+│   └── easing.py       # Easing functions
+├── drawing/            # Drawing utilities
+└── export/             # Export functionality
+    ├── video_exporter.py   # FFmpeg video export
+    └── web_exporter.py     # HTML/CSS/JS export
 ```
 
-## Quick Start
-
-1. **Install the package**:
-   ```bash
-   pip install kivg
-   ```
-
-2. **Set up your Kivy widget**:
-   ```python
-    from kivy.app import App
-    from kivy.uix.widget import Widget
-    from kivg import Kivg
-
-    class MyWidget(Widget):
-        def __init__(self, **kwargs):
-            super(MyWidget, self).__init__(**kwargs)
-            self.size = (1024, 1024)
-            self.pos = (0, 0)
-
-    class KivgDemoApp(App):
-        def build(self):
-            widget = MyWidget()
-            self.kivg = Kivg(widget)
-            self.kivg.draw("icons/so.svg", animate=True, line_color=[1,1,1,1], line_width=2)
-            return widget
-
-    if __name__ == "__main__":
-        KivgDemoApp().run()
-   ```
-
-3. **Try shape animations**:
-   ```python
-   # Configure animations for different shapes
-   animations = [
-       {"id_": "shape1", "from_": "left", "t": "out_bounce", "d": 0.5},
-       {"id_": "shape2", "from_": "top", "t": "out_elastic", "d": 0.3}
-   ]
-   self.kivg.shape_animate("path/to/your.svg", anim_config_list=animations)
-   ```
-
-## Useful Tools
-
-Few links that I found useful for modifying few svg files in order to work with this library are:
-
-* https://itchylabs.com/tools/path-to-bezier/ - Convert SVG Path to Cubic Curves
-
-    Use it to convert SVG Arcs to Cubic Bezier. Make sure you paste the entire `path` in the textfield rather than only the arc section. Also you should provide path dimensions(`W` & `H`) on the website as your svg width and height(found under `<svg>` tag). You may also need to close each path, i.e. add `Z` at the end of new converted path.
-
-* https://codepen.io/thednp/pen/EgVqLw - Convert Relative SVG Path To Absolute Path
-    
-    Maybe useful when you want to split a single svg path into multiple paths for animation purpose. Paste the entire path. When splitting, make sure you close the previous path by adding a `Z` at the end in the path string.
-
-* https://jakearchibald.github.io/svgomg/ - SVG Optimizer
-    
-    Useful for cleaning up and optimizing SVG files to ensure compatibility.
-
 ## Changelog
+
+**v2.0**
+* Complete rewrite - removed Kivy dependency
+* Added web animation export (CSS/JavaScript/SMIL)
+* Added video export using FFmpeg
+* Works in headless environments
+* Cross-platform support
 
 **v1.1**
 * Fixed crashing when SVG size is not int
@@ -183,10 +166,6 @@ Few links that I found useful for modifying few svg files in order to work with 
 **v1.0**
 * Shape animation feature added
 * Added `anim_type` in draw method
-
-**Earlier Changes**
-* Added option to draw image without animation, `animate=False`
-* Added option to draw empty or filled path, `fill=True` or `fill=False`
 
 ## Contributing
 
