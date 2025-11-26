@@ -1,161 +1,169 @@
-from kivy.app import App
-from kivy.lang import Builder
-from kivy.clock import mainthread
+#!/usr/bin/env python3
+"""
+Kivg Demo - SVG Animation to Video Export
 
-from kivg import Kivg
+This script demonstrates the SVG animation capabilities of Kivg
+by exporting an animated SVG as a video file.
 
-kv = """
-BoxLayout:
-    orientation: "vertical"
-    canvas:
-        Color:
-            rgba: 1,1,1,1
-        Rectangle:
-            pos: self.pos
-            size: self.size
-
-    AnchorLayout:
-        BoxLayout:
-            id: svg_area
-            size_hint: None, None
-            size: 256, 256
-    
-    GridLayout:
-        size_hint_y: None
-        height: dp(64)
-        id: button_area
-        rows: 1
-        padding: dp(4), 0
-        spacing: dp(root.width/40)
-
-        MYMDIconButton:
-            svg_icon: "icons/kivy.svg"
-        
-        MYMDIconButton:
-            svg_icon: "icons/python2.svg"
-        
-        MYMDIconButton:
-            svg_icon: "icons/github3.svg"
-        
-        MYMDIconButton:
-            svg_icon: "icons/github.svg"
-        
-        MYMDIconButton:
-            svg_icon: "icons/sublime.svg"
-        
-        MYMDIconButton:
-            svg_icon: "icons/discord2.svg"
-        
-        MYMDIconButton:
-            svg_icon: "icons/so.svg"
-        
-        MYMDIconButton:
-            svg_icon: "icons/text.svg"
-        
-        MYMDIconButton:
-            svg_icon: "icons/twitter2.svg"
-        
-        MYMDIconButton:
-            svg_icon: "icons/google3.svg"
-        
-        MYMDIconButton:
-            svg_icon: "icons/pie_chart.svg"
-        
-        MYMDIconButton:
-            svg_icon: "icons/facebook2.svg"
-
-<MYMDIconButton@Button>:
-    size_hint: None, None
-    size: dp(48), dp(48)
-    on_release:
-        app.animate(self.svg_icon) if (not "so" in self.svg_icon) and (not "pie" in self.svg_icon) and (not "text" in self.svg_icon)\
-            else app.shape_animate(self.svg_icon, self.svg_icon[6:-4]+'_config')
-
+Usage:
+    python main.py [svg_file] [output_video]
+    python main.py                           # Uses default kivy.svg icon
+    python main.py icons/github.svg          # Animate github icon
+    python main.py icons/kivy.svg output.mp4 # Custom output path
 """
 
+import argparse
+import os
+import sys
 
-class KivgDemo(App):
-    def build(self):
-        self.root = Builder.load_string(kv)
-        self.s = Kivg(self.root.ids.svg_area)
-        return self.root
+# Add parent directory to path to import kivg
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-    @mainthread
-    def show_button_icon(self, *args):
-        grid = self.root.ids.button_area
-        for b in grid.children:
-            s = Kivg(b)
-            setattr(b, "s", s)
-            self.draw_filled(s, b.svg_icon)
+from kivg import SVGAnimator
 
-    def draw_filled(self, s, icon):
-        s.draw(icon)
 
-    def draw_path(self, s, icon):
-        s.draw(icon, fill=False, line_width=1)
+def progress_callback(current: int, total: int) -> None:
+    """Display progress during video generation."""
+    percent = (current / total) * 100
+    bar_length = 40
+    filled = int(bar_length * current / total)
+    bar = "=" * filled + "-" * (bar_length - filled)
+    print(f"\rGenerating frames: [{bar}] {percent:.1f}% ({current}/{total})", end="")
+    if current == total:
+        print()  # New line when complete
 
-    def on_start(self):
-        self.show_button_icon()
 
-    def animate(self, svg_file):
-        self.s.draw(
-            svg_file, 
-            animate=True, 
-            fill=True,              # Désactiver le remplissage pour voir le tracé
-            line_width=1,            # Trait plus épais pour mieux voir
-            show_hand=True,          # Afficher la main qui dessine
-            hand_size=(150, 150),    # Main plus grande pour mieux voir
-            dur=0.002,                # Animation un peu plus lente
-            pen_offset=(25, 145)     # Ajuster la position du stylo (x, y depuis le coin supérieur gauche de l'image)
+def main():
+    """Main function to run the SVG to video demo."""
+    parser = argparse.ArgumentParser(
+        description="Kivg Demo - Export SVG animation as video",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+    python main.py                           # Uses default kivy.svg icon
+    python main.py icons/github.svg          # Animate github icon
+    python main.py icons/kivy.svg output.mp4 # Custom output path
+    python main.py --duration 3 --fps 60 icons/python2.svg  # Custom settings
+        """,
+    )
+    parser.add_argument(
+        "svg_file",
+        nargs="?",
+        default="icons/kivy.svg",
+        help="Path to the SVG file (default: icons/kivy.svg)",
+    )
+    parser.add_argument(
+        "output",
+        nargs="?",
+        default=None,
+        help="Output video file path (default: <svg_name>_animation.mp4)",
+    )
+    parser.add_argument(
+        "--width", type=int, default=512, help="Video width in pixels (default: 512)"
+    )
+    parser.add_argument(
+        "--height", type=int, default=512, help="Video height in pixels (default: 512)"
+    )
+    parser.add_argument(
+        "--fps", type=int, default=30, help="Frames per second (default: 30)"
+    )
+    parser.add_argument(
+        "--duration",
+        type=float,
+        default=2.0,
+        help="Animation duration in seconds (default: 2.0)",
+    )
+    parser.add_argument(
+        "--stroke-color",
+        default="#000000",
+        help="Stroke color during animation (default: #000000)",
+    )
+    parser.add_argument(
+        "--stroke-width",
+        type=int,
+        default=2,
+        help="Stroke width (default: 2)",
+    )
+    parser.add_argument(
+        "--background",
+        default="#ffffff",
+        help="Background color (default: #ffffff)",
+    )
+    parser.add_argument(
+        "--no-fill",
+        action="store_true",
+        help="Don't fill paths after drawing",
+    )
+    parser.add_argument(
+        "--quality",
+        type=int,
+        default=23,
+        help="Video quality (0-51, lower is better, default: 23)",
+    )
+
+    args = parser.parse_args()
+
+    # Resolve SVG file path relative to script directory
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    svg_path = args.svg_file
+    if not os.path.isabs(svg_path):
+        svg_path = os.path.join(script_dir, svg_path)
+
+    # Check if SVG file exists
+    if not os.path.exists(svg_path):
+        print(f"Error: SVG file not found: {svg_path}")
+        print("\nAvailable icons in demo/icons/:")
+        icons_dir = os.path.join(script_dir, "icons")
+        if os.path.exists(icons_dir):
+            for icon in sorted(os.listdir(icons_dir)):
+                if icon.endswith(".svg"):
+                    print(f"  - icons/{icon}")
+        sys.exit(1)
+
+    # Determine output path
+    if args.output:
+        output_path = args.output
+    else:
+        svg_name = os.path.splitext(os.path.basename(args.svg_file))[0]
+        output_path = f"{svg_name}_animation.mp4"
+
+    print(f"Kivg Demo - SVG Animation to Video Export")
+    print(f"=" * 50)
+    print(f"Input SVG:    {svg_path}")
+    print(f"Output video: {output_path}")
+    print(f"Resolution:   {args.width}x{args.height}")
+    print(f"Duration:     {args.duration}s at {args.fps} FPS")
+    print(f"Fill paths:   {not args.no_fill}")
+    print(f"=" * 50)
+
+    # Create animator and load SVG
+    animator = SVGAnimator(width=args.width, height=args.height)
+
+    print(f"\nLoading SVG...")
+    info = animator.load_svg(svg_path)
+    print(f"  SVG size: {info['svg_size']}")
+    print(f"  Paths found: {info['path_count']}")
+    print(f"  Shapes: {len(info['shapes'])}")
+
+    print(f"\nExporting video...")
+    try:
+        output_file = animator.export_to_video(
+            output_file=output_path,
+            fps=args.fps,
+            duration=args.duration,
+            fill=not args.no_fill,
+            stroke_color=args.stroke_color,
+            stroke_width=args.stroke_width,
+            background_color=args.background,
+            quality=args.quality,
+            on_progress=progress_callback,
         )
-    
-    def shape_animate(self, svg_file, config):
-        self.sf = svg_file
-        self.con = config
-        pie_chart_config = [
-            {"id_":"neck", "from_":"center_y","d":.45, "t":"out_cubic"},
-            {"id_":"neck-color","d":0},
-            {"id_":"stand", "from_":"center_x", "t":"out_back", "d":.45},
-            {"id_":"stand-color", "d":0},
-            {"id_":"display", "from_":"center_x", "t":"out_bounce","d":.45},
-            {"id_":"display-color","d":0},
-            {"id_":"screen", "from_":"center_y", "t":"out_circ","d":.45},
-            {"id_":"screen-color", "from_":"left","d":.1},
-            {"id_":"bullet1", "from_":"center_x", "d":.2},
-            {"id_":"data1", "from_":"left", "d":.3},
-            {"id_":"bullet2", "from_":"center_x", "d":.2},
-            {"id_":"data2", "from_":"left", "d":.3},
-            {"id_":"bullet3", "from_":"center_x", "d":.2},
-            {"id_":"data3", "from_":"left", "d":.3},
-            {"id_":"pie-full", "from_":"center_y"},
-            {"id_":"pie", "from_":"bottom", "t":"out_bounce", "d":.1},
-            {"id_":"btn1", "from_": "left"},
-            {"id_":"btn2", "from_":"right"},
-        ]
-
-        so_config = [
-            {"id_": "base", "from_":"center_y", "t":"out_bounce", "d":.4},
-            {"id_":"line1", "d":.05},
-            {"id_":"line2", "d":.05},
-            {"id_":"line3", "d":.05},
-            {"id_":"line4", "d":.05},
-            {"id_":"line5", "d":.05},
-            {"id_":"line6", "d":.05},
-        ]
-
-        text_config = [
-            {"id_":"k","from_":"center_x", "t":"out_back", "d":.4},
-            {"id_":"i","from_":"center_y", "t":"out_bounce", "d":.4},
-            {"id_":"v","from_":"top", "t":"out_quint", "d":.4},
-            {"id_":"y","from_":"bottom", "t":"out_back", "d":.4}
-        ]
-        self.s.shape_animate(svg_file, anim_config_list=eval(config), on_complete=self.completed)
-    
-    def completed(self, *args):
-        pass
-        # Repeat animation
-        # Clock.schedule_once(lambda *args: self.shape_animate(self.sf, self.con), .5)
+        print(f"\nSuccess! Video saved to: {output_file}")
+        print(f"File size: {os.path.getsize(output_file) / 1024:.1f} KB")
+    except RuntimeError as e:
+        print(f"\nError: {e}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
-    KivgDemo().run()
+    main()
