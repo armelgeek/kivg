@@ -106,7 +106,7 @@ class KivgDemo(App):
             show_hand=True,          # Afficher la main qui dessine
             hand_size=(150, 150),    # Main plus grande pour mieux voir
             dur=0.002,                # Animation un peu plus lente
-            pen_offset=(25, 120)     # Ajuster la position du stylo (x, y depuis le coin supérieur gauche de l'image)
+            pen_offset=(25, 145)     # Ajuster la position du stylo (x, y depuis le coin supérieur gauche de l'image)
         )
     
     def shape_animate(self, svg_file, config):
